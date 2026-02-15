@@ -1,0 +1,77 @@
+
+VERY IMPORTANT NOTICE :PLEASE RIGHT CLICK ON UR .env FILE AND GIVE IT PERMISSON 600 IMMEDITELY AFTER U ENTERED UR DATABASE DETEAILS IN IT, ITS VERY IMPORTANT U DO THIS.
+ALSO MAKE SURE  YOU YOUR ADMIN DETAILS
+Installation
+Server Requirements:
+
+*. Ensure your PHP version >= 8.1.0
+
+* .Mysql 5.X
+
+
+Installation Process:
+
+1. Upload and extract the zip files to your website public_html directory or the directory you which to run your site from (sub-directory or sub-domain) in your filemanager
+
+
+2. Create your DATABASE and USER E.G. DATABASE: remedy_db, USER: remedy_user, PASSWORD: ******** .
+
+3. Ensure you grant the database user all permissions.
+
+4. Go to your phpmyadmin and then go to SQL folder and upload the database.sql
+
+5. Go back to file manager public_html or directory where you uploaded and extracted the mainscript.zip and edit the .env file the enter the database details you created
+VERY IMPORTANT NOTICE :PLEASE RIGHT CLICK ON UR .env FILE AND GIVE IT PERMISSON 600 IMMEDITELY AFTER U ENTERED UR DATABASE DETEAILS IN IT, ITS VERY IMPORTANT U DO THIS.
+
+6. Congrats, you are done!
+
+admin logins details
+yoururl/admin/botlogin
+admin@mail.com
+123456
+
+setup cron job of every 2mins for automatic profit return
+wget -O--q https://yoururl/cron/run-scheduler/8754
+Please make sure you change your admin details email and password. Never you use default admin logins for live website !!!!
+
+************ TO SET WALLET ADDRESS **********************
+
+1 - Create the payment method in admin. Example Bitcoin, Ethereum, USDT_Trc20
+
+2 - Go to env file, go to line 32. fix up the addresses there
+
+3 - You can create new one by using the same payment method name you used - Very important else if wont show
+
+
+To manipulate the BOT trading and copy trading result for each user do it in account details of selected user edit u will see trading bot win rate , copy trading win rate etc
+Same with withdrawal code 
+
+
+
+SECURITY DISCLIAMER:
+Change default admin passwords immediately and monitor wallet 
+activity regularly. We are not responsible for breaches due to
+unaltered settings or infrequent checks.
+
+*********************************************************************
+**** This online INVESTMENT script is for educational purposes only. 
+We are not responsible for any illegal use of this script. ******
+The company is not liable for any damages or legal issues from misuse. Users must comply with all laws.
+
+The company will not be held liable for any failed transactions Incorrect payments, or unauthorized changes to payment methods or addresses. It is crucial that you review and confirm all payment details before proceeding with any financial transactions.
+
+********************************************************************
+
+
+AI-Powered Trading Bots: Subscribe to pre-configured trading bots that trade automatically on your behalf
+24/7 Automated Trading: Bots work around the clock, even when you're sleeping
+Multiple Bot Strategies: Choose from different trading strategies and risk levels
+Transparent Performance: View detailed trading history and bot performance statistics
+Flexible Subscription Plans: Various bot packages with different profit rates and durations
+Cancel Anytime: Stop bot trading and get partial refunds when needed
+Copy Trading System
+Follow Expert Traders: Copy the trades of successful professional traders automatically
+Expert Trader Profiles: Browse verified expert traders with their performance history
+Automatic Trade Copying: When an expert makes a trade, it's automatically copied to your account
+Real-Time Notifications: Get instant updates when copy trades are executed
+Performance Tracking: Monitor how well your copied trades are performing

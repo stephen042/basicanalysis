@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="40" viewBox="0 0 48 40" fill="none" class="speaker-icon">
+  <style>
+    .speaker-path {
+      stroke: #12FF99;
+      stroke-width: 0;
+      fill: #12FF99;
+      stroke-dasharray: 500;
+      stroke-dashoffset: 500;
+      animation: draw 4s linear infinite;
+    }
+    
+    .speaker-icon:hover .speaker-path {
+      animation: draw 4s linear infinite, colorPulse 2s infinite;
+      stroke-width: 1;
+    }
+    
+    @keyframes draw {
+      0% { stroke-dashoffset: 500; }
+      80% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: 0; }
+    }
+    
+    @keyframes colorPulse {
+      0% { fill: #12FF99; stroke: #12FF99; }
+      50% { fill: #00CC77; stroke: #00CC77; }
+      100% { fill: #12FF99; stroke: #12FF99; }
+    }
+  </style>
+  
+  <path class="speaker-path" d="M19.6923 0H2.46154C1.10425 0 0 1.10425 0 2.46154V18.4615C0 19.8188 1.10425 20.9231 2.46154 20.9231H12.6603C11.5068 26.5838 6.45009 30.7692 0.615385 30.7692C0.275569 30.7692 0 31.0447 0 31.3846V39.3846C0 39.7246 0.275569 40 0.615385 40C12.4917 40 22.1538 30.3378 22.1538 18.4615V2.46154C22.1538 1.10425 21.0496 0 19.6923 0ZM20.9231 18.4615C20.9231 29.4535 12.1451 38.4337 1.23077 38.7601V31.9861C4.28554 31.8471 7.20591 30.6774 9.51298 28.6566C11.9489 26.5231 13.5425 23.589 14.0005 20.3951C14.0258 20.2183 13.9733 20.0394 13.8564 19.9046C13.7394 19.7697 13.5697 19.6923 13.3914 19.6923H2.46154C1.78289 19.6923 1.23077 19.1402 1.23077 18.4615V2.46154C1.23077 1.78289 1.78289 1.23077 2.46154 1.23077H19.6923C20.371 1.23077 20.9231 1.78289 20.9231 2.46154V18.4615ZM45.5385 0H28.3077C26.9504 0 25.8462 1.10425 25.8462 2.46154V18.4615C25.8462 19.8188 26.9504 20.9231 28.3077 20.9231H38.507C37.3535 26.5838 32.2966 30.7692 26.4615 30.7692C26.1216 30.7692 25.8462 31.0447 25.8462 31.3846V39.3846C25.8462 39.7246 26.1216 40 26.4615 40C38.3378 40 48 30.3378 48 18.4615V2.46154C48 1.10425 46.8959 0 45.5385 0ZM46.7692 18.4615C46.7692 29.4535 37.9913 38.4337 27.0769 38.7601V31.9861C30.1317 31.8473 33.0522 30.6774 35.3594 28.6566C37.7954 26.5231 39.3892 23.589 39.8471 20.3951C39.8725 20.2183 39.8198 20.0394 39.703 19.9046C39.5861 19.7697 39.4165 19.6923 39.238 19.6923H28.3077C27.629 19.6923 27.0769 19.1402 27.0769 18.4615V2.46154C27.0769 1.78289 27.629 1.23077 28.3077 1.23077H45.5385C46.2171 1.23077 46.7692 1.78289 46.7692 2.46154V18.4615Z">
+    <animate attributeName="stroke-width" values="0;1;0" dur="4s" repeatCount="indefinite" begin="0s" />
+  </path>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const path = document.querySelector('.speaker-path');
+      const pathLength = path.getTotalLength();
+      path.style.strokeDasharray = pathLength;
+      path.style.strokeDashoffset = pathLength;
+      
+      // Update animation to use exact path length
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes draw {
+          0% { stroke-dashoffset: ${pathLength}; }
+          80% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    });
+  </script>
+</svg>

@@ -1,0 +1,198 @@
+@font-face {
+  font-family: "flaticon_xtrade";
+  src: url("flaticon_xtradee3d9.woff2?ac6302d7975c2c56eb885f645eea6bc5") format("woff2"), url("flaticon_xtradee3d9.woff?ac6302d7975c2c56eb885f645eea6bc5") format("woff"), url("flaticon_xtradee3d9.eot?ac6302d7975c2c56eb885f645eea6bc5#iefix") format("embedded-opentype"), url("flaticon_xtradee3d9.ttf?ac6302d7975c2c56eb885f645eea6bc5") format("truetype"), url("flaticon_xtradee3d9.svg?ac6302d7975c2c56eb885f645eea6bc5#flaticon_xtrade") format("svg");
+}
+i[class^=flaticon-]:before, i[class*=" flaticon-"]:before {
+  font-family: flaticon_xtrade !important;
+  font-style: normal;
+  font-weight: normal !important;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.flaticon-left-chevron:before {
+  content: "\f101";
+}
+
+.flaticon-right-arrow:before {
+  content: "\f102";
+}
+
+.flaticon-upper-right-arrow:before {
+  content: "\f103";
+}
+
+.flaticon-arrow-upper-right:before {
+  content: "\f104";
+}
+
+.flaticon-arrow-upper-right-1:before {
+  content: "\f105";
+}
+
+.flaticon-arrow:before {
+  content: "\f106";
+}
+
+.flaticon-arrow-1:before {
+  content: "\f107";
+}
+
+.flaticon-candlestick-chart:before {
+  content: "\f108";
+}
+
+.flaticon-christmas-stars:before {
+  content: "\f109";
+}
+
+.flaticon-sparkler:before {
+  content: "\f10a";
+}
+
+.flaticon-sparkler-1:before {
+  content: "\f10b";
+}
+
+.flaticon-star:before {
+  content: "\f10c";
+}
+
+.flaticon-compass:before {
+  content: "\f10d";
+}
+
+.flaticon-chart:before {
+  content: "\f10e";
+}
+
+.flaticon-chart-1:before {
+  content: "\f10f";
+}
+
+.flaticon-christmas-star:before {
+  content: "\f110";
+}
+
+.flaticon-star-1:before {
+  content: "\f111";
+}
+
+.flaticon-market-analysis:before {
+  content: "\f112";
+}
+
+.flaticon-stock-market-1:before {
+  content: "\f113";
+}
+
+.flaticon-balance-sheet:before {
+  content: "\f114";
+}
+
+.flaticon-graph:before {
+  content: "\f115";
+}
+
+.flaticon-forex:before {
+  content: "\f116";
+}
+
+.flaticon-right-arrow-1:before {
+  content: "\f117";
+}
+
+.flaticon-check:before {
+  content: "\f118";
+}
+
+.flaticon-search-interface-symbol:before {
+  content: "\f119";
+}
+
+.flaticon-down-arrow:before {
+  content: "\f11a";
+}
+
+.flaticon-cam-recorder:before {
+  content: "\f11b";
+}
+
+.flaticon-ux:before {
+  content: "\f11c";
+}
+
+.flaticon-live:before {
+  content: "\f11d";
+}
+
+.flaticon-live-1:before {
+  content: "\f11e";
+}
+
+.flaticon-favorites:before {
+  content: "\f11f";
+}
+
+.flaticon-star-2:before {
+  content: "\f120";
+}
+
+.flaticon-star-3:before {
+  content: "\f121";
+}
+
+.flaticon-sparkle:before {
+  content: "\f122";
+}
+
+.flaticon-star-4:before {
+  content: "\f123";
+}
+
+.flaticon-star-5:before {
+  content: "\f124";
+}
+
+.flaticon-favourite:before {
+  content: "\f125";
+}
+
+.flaticon-highlight:before {
+  content: "\f126";
+}
+
+.flaticon-burst:before {
+  content: "\f127";
+}
+
+.flaticon-arrows:before {
+  content: "\f128";
+}
+
+.flaticon-left-arrow:before {
+  content: "\f129";
+}
+
+.flaticon-arrow-up:before {
+  content: "\f12a";
+}
+
+.flaticon-right-arrow-2:before {
+  content: "\f12b";
+}
+
+.flaticon-24-hours:before {
+  content: "\f12c";
+}
+
+.flaticon-market-share:before {
+  content: "\f12d";
+}
+
+.flaticon-team-leader:before {
+  content: "\f12e";
+}/*# sourceMappingURL=flaticon_xtrade.css.map */

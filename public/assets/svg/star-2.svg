@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="110" height="110" viewBox="0 0 110 110" class="x-icon">
+  <style>
+    .x-path {
+      stroke: #141515;
+      stroke-width: 2;
+      fill: none;
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 1000;
+      animation: 
+        draw 3.5s ease-in-out infinite,
+        rotate 8s linear infinite,
+        colorFill 7s ease-in-out infinite;
+      transform-origin: center;
+    }
+    
+    .x-icon:hover .x-path {
+      animation: 
+        draw 3.5s ease-in-out infinite,
+        rotate 4s linear infinite,
+        colorFill 3.5s ease-in-out infinite,
+        glow 1.5s ease-in-out infinite alternate;
+    }
+    
+    @keyframes draw {
+      0% { stroke-dashoffset: 1000; }
+      70% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: 0; }
+    }
+    
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes colorFill {
+      0%, 40% { fill: transparent; }
+      50%, 90% { fill: #141515; }
+      100% { fill: transparent; }
+    }
+    
+    @keyframes glow {
+      to { stroke: #3a3b3c; stroke-width: 3; }
+    }
+  </style>
+  
+  <path class="x-path" d="M55 0C52.5479 50.5312 50.5312 52.5479 0 55C50.5312 57.4521 52.5479 59.4688 55 110C57.4521 59.4688 59.4688 57.4521 110 55C59.4688 52.5479 57.4521 50.5312 55 0Z"/>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const path = document.querySelector('.x-path');
+      const pathLength = Math.ceil(path.getTotalLength());
+      
+      path.style.strokeDasharray = pathLength;
+      path.style.strokeDashoffset = pathLength;
+      
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes draw {
+          0% { stroke-dashoffset: ${pathLength}; }
+          70% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    });
+  </script>
+</svg>
