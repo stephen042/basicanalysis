@@ -5,6 +5,7 @@ namespace App\Providers;
 use League\Flysystem\Filesystem;
 use League\Flysystem\Sftp\SftpAdapter;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\URL;
 use App\Models\Settings;
 use App\Models\SettingsCont;
 use App\Models\TermsPrivacy;
@@ -49,5 +50,13 @@ class AppServiceProvider extends ServiceProvider
         View::share('terms', $terms);
         View::share('moresettings', $moreset);
         View::share('mod', $settings->modules);
+
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+        // Force the asset helper to include /public/ in the path
+        if (!app()->isLocal()) {
+            \Illuminate\Support\Facades\URL::forceRootUrl(config('app.url') . '/public');
+        }
     }
 }
