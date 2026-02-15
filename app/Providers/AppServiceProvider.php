@@ -54,9 +54,10 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
         }
+        
         // Force the asset helper to include /public/ in the path
-        if (!app()->isLocal()) {
-            \Illuminate\Support\Facades\URL::forceRootUrl(config('app.url') . '/public');
-        }
+        // if (!app()->isLocal()) {
+        //     \Illuminate\Support\Facades\URL::forceRootUrl(config('app.url') . '/public');
+        // }
     }
 }
