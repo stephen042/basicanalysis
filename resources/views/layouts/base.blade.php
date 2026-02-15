@@ -14,7 +14,7 @@
     <!-- Favicon -->
     {{-- <link rel="shortcut icon" href="assets/images/logo/favicon.ico"> --}}
     <link rel="icon"
-        href="{{ asset('storage/app/public/' . $settings->favicon) ?? asset('assets/images/logo/favicon.ico') }}"
+        href="{{ asset('storage/' . $settings->favicon) ?? asset('assets/images/logo/favicon.ico') }}"
         type="image/png" />
     <!-- Bootstrap -->
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
@@ -36,7 +36,7 @@
 
 <body>
     <!--==========================   Preloader Start  ==========================-->
-    {{-- <div id="preloader">
+    <div id="preloader">
         <div id="text">
             <p class="active">B</p>
             <p>B</p>
@@ -45,7 +45,7 @@
             <p>I</p>
             <p>C</p>
         </div>
-    </div> --}}
+    </div>
     <!--==========================  Preloader End  ==========================-->
 
 
@@ -56,8 +56,8 @@
             <nav class="navbar navbar-expand-lg navbar-main">
                 <div class="container">
                     <a class="navbar-brand" href="/">
-                        <img src="{{ asset('storage/app/public/' . $settings->logo) }}" alt="{{ $settings->site_name }}"
-                            class="logo-img">
+                        <img src="{{ asset('storage/' . $settings->logo) }}" alt="{{ $settings->site_name }}"
+                            class="logo-img" width="50" height="50">
                     </a>
                     <div class="right-nav">
                         <a href="{{ route('login') }}" class="btn btn-outline--base d-none d-sm-block">
@@ -79,9 +79,6 @@
                     <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar"
                         aria-labelledby="offcanvasNavbarLabel">
                         <div class="offcanvas-header">
-                            <h5 class="offcanvas-title" id="offcanvasNavbarLabel">
-                                <img src="assets/images/logo/logo.svg" alt="logo" class="logo-img">
-                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="offcanvas"
                                 aria-label="Close"></button>
                         </div>
@@ -133,7 +130,7 @@
                         <div class="col-xl-4 col-lg-6">
                             <div class="footer-item footer-logo-con pe-xl-5">
                                 <div class="footer-item__logo">
-                                    <a href="/"> <img src="{{ asset('storage/app/public/' . $settings->logo) }}"
+                                    <a href="/"> <img src="{{ asset('storage/' . $settings->logo) }}"
                                             alt="{{ $settings->site_name }}" class="logo-img"></a>
                                 </div>
                                 <p class="footer-item__desc">

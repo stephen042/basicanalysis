@@ -8,7 +8,7 @@
     <title>{{ $settings->site_name }} | @yield('title')</title>
 
     <!-- Favicon -->
-    <link rel="icon" href="{{ asset('storage/app/public/' . $settings->favicon) }}" type="image/png" />
+    <link rel="icon" href="{{ asset('storage/' . $settings->favicon) }}" type="image/png" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -128,7 +128,7 @@
                 <div class="text-center">
                     <a href="/" class="inline-block transform hover:scale-105 transition-transform">
                         <img class="w-auto h-16 mx-auto mb-6 drop-shadow-lg"
-                            src="{{ asset('storage/app/public/' . $settings->logo) }}" alt="{{ $settings->site_name }}">
+                            src="{{ asset('storage/' . $settings->logo) }}" alt="{{ $settings->site_name }}">
                     </a>
                 </div>
 

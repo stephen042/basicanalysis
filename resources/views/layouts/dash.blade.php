@@ -9,7 +9,7 @@
     <title>{{ $settings->site_name }} | @yield('title')</title>
 
     @section('styles')
-        <link rel="icon" href="{{ asset('storage/app/public/' . $settings->favicon) }}" type="image/png" />
+        <link rel="icon" href="{{ asset('storage/' . $settings->favicon) }}" type="image/png" />
 
         <!-- Tailwind CSS -->
         <script src="https://cdn.tailwindcss.com"></script>
