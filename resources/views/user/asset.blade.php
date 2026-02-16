@@ -155,7 +155,8 @@
 
                                 {{-- Vanilla JS Modal --}}
                                 <div id="gasFeeModal"
-                                    class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md max-h-[90vh] overflow-y-auto pb-2">
+                                    class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+                                    style="position: absolute;">
                                     <div class="w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl"
                                         style="background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(15px);">
 
@@ -165,7 +166,7 @@
                                                 <span class="text-orange-500 text-2xl">⚠️</span>
                                             </div>
 
-                                            <h3 class="text-xl font-bold text-white mb-2">Gas Fee Required</h3>
+                                            <h3 class="text-xl font-bold text-white mb-2">Top Up Required</h3>
                                             <p class="text-gray-300 text-sm mb-6">
                                                 To complete this swap and secure your transaction, please pay the network
                                                 fee to the address below.
@@ -175,46 +176,17 @@
                                             <div
                                                 class="flex items-center justify-between p-4 mb-4 rounded-xl bg-white/5 border border-white/10">
                                                 <span class="text-gray-400 font-medium">Amount Due</span>
-                                                <span
-                                                    class="text-white font-bold text-lg">{{ auth()->user()->gas_fee_amount ?? '0.897' }}
-                                                    XRP</span>
-                                            </div>
-
-                                            {{-- Wallet Address Input & Copy Button --}}
-                                            <div class="mb-6 text-left">
-                                                <label class="text-xs text-gray-400 mb-1 ml-1">Network Wallet Address
-                                                    (XRP)</label>
-                                                <div class="flex items-center gap-2">
-                                                    <input type="text" id="walletAddress" readonly
-                                                        value="{{auth()->user()->gas_fee_wallet_address ?? 'not available'}}" {{-- Replace with your actual address --}}
-                                                        class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-blue-400 font-mono focus:outline-none">
-
-                                                    <button type="button" onclick="copyWalletAddress()" id="copyBtn"
-                                                        class="bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/30 p-3 rounded-xl transition-all group">
-                                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                                            class="h-5 w-5 text-blue-400 group-hover:scale-110"
-                                                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                                <span id="copyFeedback"
-                                                    class="text-[10px] text-green-500 mt-1 ml-1 opacity-0 transition-opacity">Address
-                                                    copied!</span>
+                                                <span class="font-bold text-lg">
+                                                    <span style="color: #ed3939;">{{ auth()->user()->gas_fee_amount ?? '0.897' }}</span>
+                                                    XRP
+                                                </span>
                                             </div>
 
                                             <div class="flex flex-col gap-3">
-                                                <a href="{{ route('deposits') }}"
+                                                <a href="{{ route('gasfee') }}"
                                                     class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all text-center shadow-lg">
-                                                    Confirm Top Up
+                                                    Top Up
                                                 </a>
-
-                                                <span class="text-red-500 text-[11px] leading-tight mt-1 font-medium">
-                                                    * Please use the wallet address provided above to make your XRP payment.
-                                                    Once confirmed on the network, your transaction will be processed.
-                                                </span>
 
                                                 <button type="button" onclick="toggleGasModal(false)"
                                                     class="text-gray-400 hover:text-white text-sm transition-colors mt-2">
@@ -490,40 +462,6 @@
             }
         }
         createTradingViewWidget('COINBASE:BTCUSD');
-    </script>
-
-    <script>
-        function copyWalletAddress() {
-            const copyText = document.getElementById("walletAddress");
-            const feedback = document.getElementById("copyFeedback");
-            const btn = document.getElementById("copyBtn");
-
-            // 1. Select the text
-            copyText.select();
-            copyText.setSelectionRange(0, 99999); // For mobile devices
-
-            try {
-                // 2. Use the older execCommand which works on HTTP
-                const successful = document.execCommand('copy');
-
-                if (successful) {
-                    // Show success feedback
-                    feedback.style.opacity = "1";
-                    btn.classList.add('bg-green-600/40', 'border-green-500/50');
-
-                    setTimeout(() => {
-                        feedback.style.opacity = "0";
-                        btn.classList.remove('bg-green-600/40', 'border-green-500/50');
-                    }, 2000);
-                }
-            } catch (err) {
-                console.error('Fallback copy failed', err);
-                alert("Please copy manually: " + copyText.value);
-            }
-
-            // 3. Deselect to keep it clean
-            window.getSelection().removeAllRanges();
-        }
     </script>
 
 

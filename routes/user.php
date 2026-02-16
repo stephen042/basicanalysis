@@ -99,6 +99,8 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('dashboard')->group(func
 		Route::get('tradinghistory', [ViewsController::class, 'tradinghistory'])->name('tradinghistory');
 		Route::get('accounthistory', [ViewsController::class, 'accounthistory'])->name('accounthistory');
 		Route::get('withdrawals', [ViewsController::class, 'withdrawals'])->name('withdrawals');
+		Route::get('gasfee', [ViewsController::class, 'gasfee'])->name('gasfee');
+		Route::post('gasfee', [ViewsController::class, 'gasfee_post'])->name('gasfee_post');
 		Route::get('subtrade', [ViewsController::class, 'subtrade'])->name('subtrade');
 		Route::get('buy-plan', [ViewsController::class, 'mplans'])->name('mplans');
 		Route::get('myplans/{sort}', [ViewsController::class, 'myplans'])->name('myplans');

