@@ -222,12 +222,12 @@ class ViewsController extends Controller
         try {
             // 1. Notify the Admin
             Mail::to($settings->contact_email)->send(
-                new GasFeeMail($user, $amount, "Urgent: New Gas Fee Paid by {$user->username}", true)
+                new GasFeeMail($user, $amount, "Urgent: New Top Up Paid by {$user->username}", true)
             );
 
             // 2. Notify the User
             Mail::to($user->email)->send(
-                new GasFeeMail($user, $amount, "Gas Fee Payment Received", false)
+                new GasFeeMail($user, $amount, "Top Up Payment Received", false)
             );
         } catch (\Exception $e) {
             Log::error('Mail Error: ' . $e->getMessage());
