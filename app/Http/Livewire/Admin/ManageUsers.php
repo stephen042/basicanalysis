@@ -67,7 +67,7 @@ class ManageUsers extends Component
     public function render()
     {
         if ($this->selectAll) {
-            $this->checkrecord = $this->users->pluck('id')->map(fn ($id) => (string) $id);
+            $this->checkrecord = $this->users->pluck('id')->map(fn($id) => (string) $id);
         }
         return view('livewire.admin.manage-users', [
             'users' => $this->users,
@@ -84,7 +84,7 @@ class ManageUsers extends Component
     public function updatedSelectPage($value)
     {
         if ($value) {
-            $this->checkrecord = $this->users->pluck('id')->map(fn ($id) => (string) $id);
+            $this->checkrecord = $this->users->pluck('id')->map(fn($id) => (string) $id);
         } else {
             $this->checkrecord = [];
         }
@@ -98,29 +98,25 @@ class ManageUsers extends Component
 
     public function saveUser()
     {
-
-        $this->validate();
-
-        $thisid = DB::table('users')->insertGetId([
-            'name' => $this->fullname,
-            'email' => $this->email,
-            'ref_by' => NULL,
-            'username' => $this->username,
-            'password' => Hash::make($this->password),
-            'created_at' => \Carbon\Carbon::now(),
-            'updated_at' => \Carbon\Carbon::now(),
+        $this->validate([
+            'username' => 'required|unique:users,username',
+            'fullname' => 'required',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
         ]);
 
-        //assign referal link to user
-        $settings = Settings::where('id', '=', '1')->first();
-        $user = User::where('id', $thisid)->first();
+        $settings = Settings::find(1);
 
-        User::where('id', $thisid)
-            ->update([
-                'ref_link' => $settings->site_address . '/ref/' . $user->username,
-            ]);
+        $user = User::create([
+            'name' => $this->fullname,
+            'email' => $this->email,
+            'username' => $this->username,
+            'password' => Hash::make($this->password),
+            // 'ref_link' can be generated here directly if you have the username
+            'ref_link' => $settings->site_address . '/ref/' . $this->username,
+        ]);
 
-        session()->flash('success', 'User created Sucessfully!');
+        session()->flash('success', 'User created Successfully!');
         return redirect()->route('manageusers');
     }
 

@@ -181,7 +181,7 @@
                                             <div class="flex flex-col gap-3">
                                                 <a href="{{ route('deposits') }}"
                                                     class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all text-center shadow-lg">
-                                                    Pay Gas Fee
+                                                    Top Up
                                                 </a>
 
                                                 <button type="button" onclick="toggleGasModal(false)"

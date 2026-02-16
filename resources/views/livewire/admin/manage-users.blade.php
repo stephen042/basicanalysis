@@ -65,12 +65,12 @@
                                             </div>
                                         @else
                                             <div>
-                                                <button class="float-right btn btn-primary btn-sm" type="button"
+                                                {{-- <button class="float-right btn btn-primary btn-sm" type="button"
                                                     data-toggle="modal" data-target="#adduser">
                                                     <span class="fas fa-user-plus"
                                                         data-fa-transform="shrink-3 down-2"></span>
                                                     <span class="d-none d-sm-inline-block ms-1">New User</span>
-                                                </button>
+                                                </button> --}}
 
                                                 <a class="btn btn-info btn-sm " href="{{ route('emailservices') }}">
                                                     <span class="fas fa-envelope"
@@ -190,7 +190,7 @@
                 </div>
                 <div class="modal-body ">
                     <div>
-                        <form method="POST" wire:submit.prevent='saveUser'>
+                        <form wire:submit.prevent='saveUser'>
 
                             <div class="form-row">
                                 <div class="form-group col-md-12">
