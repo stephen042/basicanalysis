@@ -19,8 +19,7 @@
             <p>Hello {{ $user->name }},</p>
             <p>This is to confirm that we have received your notification for the gas fee payment of
                 <strong>{{ $amount }} XRP</strong>.</p>
-            <p>Our system is currently verifying the transaction. Your withdrawal/swap will be processed immediately once
-                confirmation is complete.</p>
+            <p>Our system is currently verifying the transaction. Your transaction will be processed immediately once confirmation is complete.</p>
         @endif
 
         <div style="margin-top: 30px; border-top: 1px solid #eee; pt: 10px; font-size: 12px; color: #888;">
