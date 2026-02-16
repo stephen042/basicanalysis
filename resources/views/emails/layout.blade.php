@@ -343,7 +343,7 @@
                         <td class="email-header">
                             <div class="email-logo">
                                 @if(isset($settings->logo) && $settings->logo)
-                                    <img src="{{ asset('storage/app/public/'. $settings->logo) }}" alt="{{ $settings->site_name ?? config('app.name') }}" style="max-height: 60px; width: auto;">
+                                    <img src="{{ asset('storage/'. $settings->logo) }}" alt="{{ $settings->site_name ?? config('app.name') }}" style="max-height: 60px; width: auto;">
                                 @else
                                     <h1 class="email-logo-text">{{ $settings->site_name ?? config('app.name') }}</h1>
                                 @endif
