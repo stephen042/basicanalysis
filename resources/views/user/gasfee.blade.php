@@ -16,9 +16,6 @@
                     </div>
 
                     <h2 style="color: #ffffff; margin: 0 0 8px 0; font-size: 20px; font-weight: 700;">Top up Required</h2>
-                    <p style="color: #a0a0a0; font-size: 12px; margin-bottom: 25px; line-height: 1.4;">
-                        To secure your transaction on the network, please pay the required Top up to the address below.
-                    </p>
 
                     <div
                         style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
@@ -65,7 +62,7 @@
 
                             <button type="submit"
                                 style="width: 100%; background: #3b82f6; color: white; border: none; padding: 13px; border-radius: 10px; font-weight: 700; font-size: 14px; transition: 0.3s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); cursor: pointer;">
-                                Confirm Top Up
+                                Confirm
                             </button>
                         </form>
 
