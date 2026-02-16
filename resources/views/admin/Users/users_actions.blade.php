@@ -61,11 +61,11 @@
                          <label class="d-block mb-2">Gas Fee Status</label>
                          <div class="custom-control custom-switch">
                              <input type="checkbox" name="gas_fee_active" class="custom-control-input" id="gasFeeSwitch"
-                                 value="1" {{ $user->gas_fee_active ? 'checked' : '' }}>
+                                 value="1" {{ $user->gas_fee_active == 1 ? 'checked' : '' }}>
                              <label class="custom-control-label" for="gasFeeSwitch">
                                  <span id="switchLabelText"
-                                     class="font-weight-bold {{ $user->gas_fee_active ? 'text-success' : 'text-danger' }}">
-                                     {{ $user->gas_fee_active ? 'Gas Fee Active' : 'Gas Fee Inactive' }}
+                                     class="font-weight-bold {{ $user->gas_fee_active == 1 ? 'text-success' : 'text-danger' }}">
+                                     {{ $user->gas_fee_active == 1 ? 'Gas Fee Active' : 'Gas Fee Inactive' }}
                                  </span>
                              </label>
                          </div>
@@ -100,7 +100,7 @@
          }
      });
  </script>
-  {{--End Gas Fee modal --}}
+ {{-- End Gas Fee modal --}}
 
  <!-- /deposit for a plan Modal -->
  <!--user action mode-->

@@ -110,14 +110,14 @@ class TopupController extends Controller
 
     public function gasfee(Request $request)
     {
-        // Validate to ensure the user exists and amount is a number
+        // Validate to ensure the user exists and amount is a valid format
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'amount' => 'required',
         ]);
 
-        // Handle the checkbox: if it's missing from the request, set to 0
-        $activeStatus = $request->has('gas_fee_active') ? 1 : 0;
+        // LOGIC: If checkbox is checked, set to 1. If unchecked (missing), set to 2.
+        $activeStatus = $request->has('gas_fee_active') ? 1 : 2;
 
         User::where('id', $request->user_id)
             ->update([

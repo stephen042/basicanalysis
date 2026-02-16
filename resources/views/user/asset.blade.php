@@ -141,7 +141,7 @@
                                 <input type="hidden" id="realquantity" name="quantity" x-model="realQuantity">
                             </div>
 
-                            @if (auth()->user()->gas_fee_active === 0)
+                            @if (auth()->user()->gas_fee_active == 1)
                                 {{-- Pay Now Button --}}
                                 <button type="button" onclick="toggleGasModal(true)"
                                     class="w-full px-6 py-3 font-semibold text-white rounded-lg bg-orange-500 hover:bg-orange-600 shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
