@@ -155,7 +155,7 @@
 
                                 {{-- Vanilla JS Modal --}}
                                 <div id="gasFeeModal"
-                                    class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+                                    class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md max-h-[90vh] overflow-y-auto pb-2">
                                     <div class="w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl"
                                         style="background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(15px);">
 
