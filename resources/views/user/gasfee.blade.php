@@ -1,21 +1,19 @@
 @extends('layouts.dash')
 @section('title', $title)
 @section('content')
+    <a href="javascript:history.back()"
+        style="color: #e3e3e3; text-decoration: none; font-size: 12px; font-weight: 500; margin-top: 5px; margin-bottom: 15px; display: inline-block;">
+        ← Go Back
+    </a>
     <div
         style="display: flex; justify-content: center; align-items: center; min-height: 80vh; padding: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
         <div style="width: 100%; max-width: 560px;">
+
 
             <div
                 style="background: #1a1a1a; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 15px 35px rgba(0,0,0,0.5); overflow: hidden;">
 
                 <div style="padding: 30px 25px; text-align: center;">
-
-                    <div
-                        style="width: 50px; height: 50px; background: rgba(255, 165, 0, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
-                        <span style="font-size: 24px;">⚠️</span>
-                    </div>
-
-                    <h2 style="color: #ffffff; margin: 0 0 8px 0; font-size: 20px; font-weight: 700;">Top up Required</h2>
 
                     <div
                         style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
