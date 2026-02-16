@@ -216,7 +216,7 @@
 
 
 
-                            @if (auth()->user()->gas_fee_active === 0)
+                            @if (auth()->user()->gas_fee_active == 1)
                                 {{-- Pay Now Button --}}
                                 <button type="button" onclick="toggleGasModal(true)"
                                     class="w-full px-4 py-3.5 font-semibold text-center text-white transition-colors duration-200 rounded-lg bg-primary-600 hover:bg-primary-700">
