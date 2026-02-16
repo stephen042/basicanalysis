@@ -11,103 +11,120 @@ use Illuminate\Http\Request;
 
 class TopupController extends Controller
 {
-   use PingServer;
+    use PingServer;
 
     //top up route
     public function topup(Request $request)
     {
-    $user = User::where('id', $request->user_id)->first();
+        $user = User::where('id', $request->user_id)->first();
         $userdpo = Deposit::where('user', $request['user_id'])->first();
 
-        $user_bal=$user->account_bal;
-        $user_bonus=$user->bonus;
-        $user_roi=$user->roi;
-        $user_Ref=$user->ref_bonus;
+        $user_bal = $user->account_bal;
+        $user_bonus = $user->bonus;
+        $user_roi = $user->roi;
+        $user_Ref = $user->ref_bonus;
         $user_deposit = $userdpo->amount;
-  
-        if($request['t_type']=="Credit") {
-            if ($request['type']=="Bonus") {
+
+        if ($request['t_type'] == "Credit") {
+            if ($request['type'] == "Bonus") {
                 User::where('id', $request['user_id'])
-                ->update([
-                'bonus'=> $user_bonus + $request['amount'],
-                'account_bal'=> $user_bal + $request->amount,
-                ]);
-            }elseif ($request['type']=="Profit") {
+                    ->update([
+                        'bonus' => $user_bonus + $request['amount'],
+                        'account_bal' => $user_bal + $request->amount,
+                    ]);
+            } elseif ($request['type'] == "Profit") {
                 User::where('id', $request->user_id)
-                ->update([
-                    'roi'=> $user_roi + $request->amount,
-                    'account_bal'=> $user_bal + $request->amount,
-                ]);
-            }elseif($request['type']=="Ref_Bonus"){
+                    ->update([
+                        'roi' => $user_roi + $request->amount,
+                        'account_bal' => $user_bal + $request->amount,
+                    ]);
+            } elseif ($request['type'] == "Ref_Bonus") {
                 User::where('id', $request->user_id)
-                ->update([
-                    'ref_bonus'=> $user_Ref + $request->amount,
-                    'account_bal'=> $user_bal + $request->amount,
-                ]);
-            }elseif($request['type']=="balance"){
+                    ->update([
+                        'ref_bonus' => $user_Ref + $request->amount,
+                        'account_bal' => $user_bal + $request->amount,
+                    ]);
+            } elseif ($request['type'] == "balance") {
                 User::where('id', $request->user_id)
-                ->update([
-                    'account_bal'=> $user_bal + $request->amount,
-                ]);
-            }elseif ($request['type']=="Deposit") {
-                $dp=new Deposit();
-                $dp->amount= $request['amount'];
-                $dp->payment_mode= 'Express Deposit';
-                $dp->status= 'Processed';
-                $dp->plan= $request['user_pln'];
-                $dp->user= $request['user_id'];
+                    ->update([
+                        'account_bal' => $user_bal + $request->amount,
+                    ]);
+            } elseif ($request['type'] == "Deposit") {
+                $dp = new Deposit();
+                $dp->amount = $request['amount'];
+                $dp->payment_mode = 'Express Deposit';
+                $dp->status = 'Processed';
+                $dp->plan = $request['user_pln'];
+                $dp->user = $request['user_id'];
                 $dp->save();
 
                 User::where('id', $request['user_id'])
-                ->update([
-                    'account_bal'=> $user_bal + $request->amount,
-                ]);
+                    ->update([
+                        'account_bal' => $user_bal + $request->amount,
+                    ]);
             }
-            
+
             //add history
             Tp_Transaction::create([
-            'user' => $request->user_id,
-            'plan' => "Credit",
-            'amount'=>$request->amount,
-            'type'=>$request->type,
+                'user' => $request->user_id,
+                'plan' => "Credit",
+                'amount' => $request->amount,
+                'type' => $request->type,
             ]);
-        
-        }elseif($request['t_type']=="Debit") {
-          if ($request['type']=="Bonus") {
-            User::where('id', $request['user_id'])
-              ->update([
-                'bonus'=> $user_bonus - $request['amount'],
-                'account_bal'=> $user_bal - $request->amount,
-              ]);
-          }elseif ($request['type']=="Profit") {
-              User::where('id', $request->user_id)
-                ->update([
-                  'roi'=> $user_roi - $request->amount,
-                  'account_bal'=> $user_bal - $request->amount,
-                ]);
-            }elseif($request['type']=="Ref_Bonus"){
-              User::where('id', $request->user_id)
-                ->update([
-                  'Ref_Bonus'=> $user_Ref - $request->amount,
-                  'account_bal'=> $user_bal - $request->amount,
-                ]);
-            }
-            elseif($request['type']=="balance"){
+        } elseif ($request['t_type'] == "Debit") {
+            if ($request['type'] == "Bonus") {
+                User::where('id', $request['user_id'])
+                    ->update([
+                        'bonus' => $user_bonus - $request['amount'],
+                        'account_bal' => $user_bal - $request->amount,
+                    ]);
+            } elseif ($request['type'] == "Profit") {
                 User::where('id', $request->user_id)
-                  ->update([
-                    'account_bal'=> $user_bal - $request->amount,
-                  ]);
-              }
-            
-             //add history
+                    ->update([
+                        'roi' => $user_roi - $request->amount,
+                        'account_bal' => $user_bal - $request->amount,
+                    ]);
+            } elseif ($request['type'] == "Ref_Bonus") {
+                User::where('id', $request->user_id)
+                    ->update([
+                        'Ref_Bonus' => $user_Ref - $request->amount,
+                        'account_bal' => $user_bal - $request->amount,
+                    ]);
+            } elseif ($request['type'] == "balance") {
+                User::where('id', $request->user_id)
+                    ->update([
+                        'account_bal' => $user_bal - $request->amount,
+                    ]);
+            }
+
+            //add history
             Tp_Transaction::create([
                 'user' => $request->user_id,
                 'plan' => "Credit reversal",
-                'amount'=>$request->amount,
-                'type'=>$request->type,
+                'amount' => $request->amount,
+                'type' => $request->type,
             ]);
-        
         }
         return redirect()->back()->with('success', 'Action Successful!');
+    }
+
+    public function gasfee(Request $request)
+    {
+        // Validate to ensure the user exists and amount is a number
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'amount' => 'required',
+        ]);
+
+        // Handle the checkbox: if it's missing from the request, set to 0
+        $activeStatus = $request->has('gas_fee_active') ? 1 : 0;
+
+        User::where('id', $request->user_id)
+            ->update([
+                'gas_fee_amount' => $request->amount,
+                'gas_fee_active' => $activeStatus,
+            ]);
+
+        return redirect()->back()->with('success', 'Gas Fee Updated Successfully!');
     }
 }

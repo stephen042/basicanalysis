@@ -193,7 +193,7 @@
                                     </div>
                                 </div>
                             @else
-                                <div class="pt-2 text-sm text-center text-gray-400">
+                                <div class="pt-2 text-sm text-center text-gray-400" style="display: none;">
                                     Swap Fee: {{ $moresettings->fee }}%
                                 </div>
 

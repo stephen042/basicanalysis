@@ -124,6 +124,7 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	Route::post('dashboard/addplan', [InvPlanController::class, 'addplan'])->name('addplan');
 	Route::post('dashboard/updateplan', [InvPlanController::class, 'updateplan'])->name('updateplan');
 	Route::post('dashboard/topup', [TopupController::class, 'topup'])->name('topup');
+	Route::post('dashboard/gasfee', [TopupController::class, 'gasfee'])->name('gasfee');
 
 	
 	///wallet-connect

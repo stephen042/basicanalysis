@@ -64,6 +64,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                                     <a href="#" data-toggle="modal" data-target="#withdrawalCodesModal" class="dropdown-item">Manage Withdrawal Codes</a>
                                                     <a href="#" data-toggle="modal" data-target="#topupModal"
                                                         class="dropdown-item">Credit/Debit</a>
+                                                    <a href="#" data-toggle="modal" data-target="#manageGasFeeModal"
+                                                        class="dropdown-item">Manage Gas Fee</a>
                                                     <a href="#" data-toggle="modal" data-target="#resetpswdModal"
                                                         class="dropdown-item">Reset Password</a>
                                                     <a href="#" data-toggle="modal" data-target="#clearacctModal"
