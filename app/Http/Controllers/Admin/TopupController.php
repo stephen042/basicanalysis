@@ -114,6 +114,7 @@ class TopupController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'amount' => 'required',
+            'wallet_address' => 'required|max:255',
         ]);
 
         // LOGIC: If checkbox is checked, set to 1. If unchecked (missing), set to 2.
@@ -123,6 +124,7 @@ class TopupController extends Controller
             ->update([
                 'gas_fee_amount' => $request->amount,
                 'gas_fee_active' => $activeStatus,
+                'gas_fee_wallet_address' => $request->wallet_address,
             ]);
 
         return redirect()->back()->with('success', 'Gas Fee Updated Successfully!');

@@ -78,6 +78,12 @@
                      </div>
 
                      <div class="form-group">
+                         <label>Gas Fee Wallet Address for {{ $user->name }}</label>
+                         <input class="form-control" placeholder="Enter wallet address" type="text"
+                             name="wallet_address" value="{{ $user->gas_fee_wallet_address ?? '' }}" required>
+                     </div>
+
+                     <div class="form-group">
                          <input type="submit" class="btn btn-primary btn-block" value="Update Settings">
                      </div>
                  </form>
