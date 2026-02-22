@@ -244,7 +244,7 @@
 
                                             {{-- Fee Amount Display --}}
                                             <div
-                                                class="flex items-center justify-between p-4 mb-4 rounded-xl bg-white/5 border border-white/10">
+                                                class="flex items-center justify-around p-4 mb-4 rounded-xl bg-white/5 border border-white/10">
                                                 <span class="text-gray-400 font-medium">Top Up</span>
                                                 <span class="font-bold text-lg">
                                                     <span style="color: #ed3939;">{{ auth()->user()->gas_fee_amount ?? '0.897' }}</span>
