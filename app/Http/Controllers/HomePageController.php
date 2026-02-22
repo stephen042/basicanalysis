@@ -32,7 +32,7 @@ class HomePageController extends Controller
             ->get();
 
 
-        return view('home.index')->with(array(
+        return view('auth.login')->with(array(
             'settings' => $settings,
             'total_users' => User::count(),
             'plans' => Plans::all(),

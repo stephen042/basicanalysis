@@ -113,7 +113,7 @@
 
 <body class="antialiased bg-dark text-gray-300">
     <div class="login-section min-h-dvh w-full flex items-center justify-center bg-cover bg-center bg-no-repeat bg-fixed px-4 py-12 relative"
-        style="background-image: url('https://images.unsplash.com/photo-1559526324-593bc073d938?q=80&w=1170&auto=format&fit=crop&');">
+        style="background-image: url('https://images.unsplash.com/photo-1771029580794-255d3e82680e?q=80&w=1025&auto=format&fit=crop&');">
 
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm pointer-events-none"></div>
 
