@@ -128,7 +128,7 @@
             </div>
         </div>
         @if ($mod['investment'])
-            <!-- Total Profit -->
+            <!-- Total Earning -->
             <div class="stats-card group relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-800 hover:border-emerald-500/50 transition-all duration-300"
                 style="animation-delay: 0.1s;">
                 <div
@@ -141,7 +141,7 @@
                 <div class="relative p-6 space-y-4">
                     <div class="flex items-start justify-between">
                         <div class="space-y-1">
-                            <p class="text-gray-400 uppercase tracking-wider text-sm">Total Profit</p>
+                            <p class="text-gray-400 uppercase tracking-wider text-sm">Total Earning</p>
                             <div class="flex items-center gap-1 text-emerald-400">
                                 <!--<span class="text-xs">↑ 0%</span>-->
                             </div>
