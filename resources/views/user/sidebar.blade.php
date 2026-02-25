@@ -2,7 +2,7 @@
     <!-- Logo -->
     <div class="flex items-center justify-center h-16 px-4 border-b border-dark-100">
         <a href="{{ route('dashboard') }}">
-            <img src="{{ asset('storage/app/public/' . $settings->logo) }}" class="h-8 w-auto" alt="logo">
+            <img src="{{ asset('storage/' . $settings->logo) }}" class="h-8 w-auto" alt="logo">
         </a>
     </div>
 
