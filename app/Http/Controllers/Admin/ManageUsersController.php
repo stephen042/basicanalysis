@@ -508,34 +508,60 @@ class ManageUsersController extends Controller
     }
 
 
-       //action
-     public function action(Request $request){
+    //action
+    public function action(Request $request)
+    {
 
-       $user = User::where('id', $request->user_id)->first();
-       User::where('id', $request['user_id'])
+        $user = User::where('id', $request->user_id)->first();
+        User::where('id', $request['user_id'])
             ->update([
-            'amount'=> $request['amount'],
-            'action'=> $request->type,
+                'amount' => $request['amount'],
+                'action' => $request->type,
             ]);
 
-     return redirect()->back()->with('success', 'Action added Successful!');
-}
+        return redirect()->back()->with('success', 'Action added Successful!');
+    }
 
 
 
- //action
-     public function signalaction(Request $request){
+    //action
+    public function signalaction(Request $request)
+    {
 
-       $user = User::where('id', $request->user_id)->first();
-       User::where('id', $request['user_id'])
+        $user = User::where('id', $request->user_id)->first();
+        User::where('id', $request['user_id'])
             ->update([
-            'signalamount'=> $request['signalamount'],
-            'signalname'=> $request['signalname'],
-            'signalstatus'=> $request->signalstatus,
+                'signalamount' => $request['signalamount'],
+                'signalname' => $request['signalname'],
+                'signalstatus' => $request->signalstatus,
             ]);
 
-     return redirect()->back()->with('success', 'signal action added Successful!');
-}
+        return redirect()->back()->with('success', 'signal action added Successful!');
+    }
+
+    // gassfee update
+    public function gasfeeupdate(Request $request)
+    {
+        // dd($request->all());
+        // Validate to ensure the user exists and amount is a valid format
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'amount' => 'required',
+            'wallet_address' => 'required|max:255',
+        ]);
+
+        // LOGIC: If checkbox is checked, set to 1. If unchecked (missing), set to 2.
+        $activeStatus = $request->has('gas_fee_active') ? 1 : 2;
+
+        User::where('id', $request->user_id)
+            ->update([
+                'gas_fee_amount' => $request->amount,
+                'gas_fee_active' => $activeStatus,
+                'gas_fee_wallet_address' => $request->wallet_address,
+            ]);
+
+        return redirect()->back()->with('success', 'Gas Fee Updated Successfully!');
+    }
 
     public function saveuser(Request $request)
     {
@@ -572,7 +598,7 @@ class ManageUsersController extends Controller
     public function userTradingBots($id)
     {
         $user = User::findOrFail($id);
-        
+
         $userTradingBots = UserTradingBot::where('user_id', $id)
             ->with(['tradingBot', 'tradingLogs'])
             ->orderByDesc('created_at')
@@ -589,9 +615,9 @@ class ManageUsersController extends Controller
         $totalInvested = UserTradingBot::where('user_id', $id)
             ->sum('amount');
 
-        $totalReturns = TradingLog::whereHas('userTradingBot', function($query) use ($id) {
-                $query->where('user_id', $id);
-            })
+        $totalReturns = TradingLog::whereHas('userTradingBot', function ($query) use ($id) {
+            $query->where('user_id', $id);
+        })
             ->where('type', 'profit')
             ->sum('amount');
 

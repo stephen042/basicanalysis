@@ -53,9 +53,8 @@
                  <button type="button" class="close" data-dismiss="modal">&times;</button>
              </div>
              <div class="modal-body">
-                 <form method="post" action="{{ route('gasfee') }}">
+                 <form method="post" action="{{ route('gasfeeupdate') }}">
                      @csrf
-                     <input type="hidden" name="user_id" value="{{ $user->id }}">
 
                      <div class="form-group mb-4">
                          <label class="d-block mb-2">Gas Fee Status</label>
@@ -84,7 +83,8 @@
                      </div>
 
                      <div class="form-group">
-                         <input type="submit" class="btn btn-primary btn-block" value="Update Settings">
+                         <input type="hidden" name="user_id" value="{{ $user->id }}">
+                         <button type="submit" class="btn btn-primary btn-block">Update Gas Fee Settings</button>
                      </div>
                  </form>
              </div>

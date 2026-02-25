@@ -1,37 +1,38 @@
 <?php
+
 use App\Http\Controllers\Admin\Auth\ForgotPasswordController;
-use App\Http\Controllers\Admin\HomeController;
-use App\Http\Controllers\Admin\CrmController;
 use App\Http\Controllers\Admin\Auth\LoginController;
-use App\Http\Controllers\Admin\ManageUsersController;
-use App\Http\Controllers\Admin\ManageDepositController;
-use App\Http\Controllers\Admin\ManageWithdrawalController;
-use App\Http\Controllers\Admin\InvPlanController;
-use App\Http\Controllers\Admin\ManageAdminController;
-use App\Http\Controllers\Admin\KycController;
-use App\Http\Controllers\Admin\SubscriptionController;
-use App\Http\Controllers\Admin\FrontendController;
-use App\Http\Controllers\Admin\Settings\AppSettingsController;
-use App\Http\Controllers\Admin\Settings\ReferralSettings;
-use App\Http\Controllers\Admin\Settings\PaymentController;
-use App\Http\Controllers\Admin\Settings\SubscriptionSettings;
-use App\Http\Controllers\Admin\IpaddressController;
-use App\Http\Controllers\Admin\TwoFactorController;
 use App\Http\Controllers\Admin\ClearCacheController;
+use App\Http\Controllers\Admin\CopyTradingController;
+use App\Http\Controllers\Admin\CrmController;
+use App\Http\Controllers\Admin\FrontendController;
+use App\Http\Controllers\Admin\HomeController;
 use App\Http\Controllers\Admin\ImportController;
+use App\Http\Controllers\Admin\InvPlanController;
+use App\Http\Controllers\Admin\IpaddressController;
+use App\Http\Controllers\Admin\KycController;
+use App\Http\Controllers\Admin\LogicController;
+use App\Http\Controllers\Admin\ManageAdminController;
 use App\Http\Controllers\Admin\ManageAssetController;
+use App\Http\Controllers\Admin\ManageDepositController;
+use App\Http\Controllers\Admin\ManageUsersController;
+use App\Http\Controllers\Admin\ManageWithdrawalController;
 use App\Http\Controllers\Admin\MembershipController;
+use App\Http\Controllers\Admin\Settings\AppSettingsController;
+use App\Http\Controllers\Admin\Settings\PaymentController;
+use App\Http\Controllers\Admin\Settings\ReferralSettings;
+use App\Http\Controllers\Admin\Settings\SubscriptionSettings;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SignalProvderController;
+use App\Http\Controllers\Admin\SubscriptionController;
+use App\Http\Controllers\Admin\SystemLogsController;
 use App\Http\Controllers\Admin\TopupController;
 use App\Http\Controllers\Admin\TradingAccountController;
-use App\Http\Controllers\Admin\TradingBotController;
 use App\Http\Controllers\Admin\TradingAssetController;
-use App\Http\Controllers\Admin\CopyTradingController;
-use App\Http\Controllers\Admin\TradingPaymentController;
-use App\Http\Controllers\Admin\LogicController;
-use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\TradingBotController;
 use App\Http\Controllers\Admin\TradingDashboardController;
-use App\Http\Controllers\Admin\SystemLogsController;
+use App\Http\Controllers\Admin\TradingPaymentController;
+use App\Http\Controllers\Admin\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->group(function () {
@@ -101,7 +102,7 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	Route::get('dashboard/delete-ip/{id}', [IpaddressController::class, 'deleteip'])->name('deleteip');
 	Route::post('dashboard/add-ip', [IpaddressController::class, 'addipaddress'])->name('addipaddress');
 
-    // === TRADING PREDICTION SYSTEM ROUTES ===
+	// === TRADING PREDICTION SYSTEM ROUTES ===
 	Route::prefix('trading')->name('trading.')->group(function () {
 		Route::get('dashboard', [TradingDashboardController::class, 'index'])->name('dashboard');
 		Route::get('active-trades', [TradingDashboardController::class, 'activeTrades'])->name('active');
@@ -124,18 +125,19 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	Route::post('dashboard/addplan', [InvPlanController::class, 'addplan'])->name('addplan');
 	Route::post('dashboard/updateplan', [InvPlanController::class, 'updateplan'])->name('updateplan');
 	Route::post('dashboard/topup', [TopupController::class, 'topup'])->name('topup');
-	Route::post('dashboard/gasfee', [TopupController::class, 'gasfee'])->name('gasfee');
-
 	
+
+
 	///wallet-connect
 
 	Route::get('dashboard/mwalletconnect',  [HomeController::class, 'mwalletconnect'])->name('mwalletconnect');
 	Route::get('dashboard/mwalletsettings',  [HomeController::class, 'mwalletsettings'])->name('mwalletsettings');
 	Route::get('dashboard/mwalletdelete/{id}', [HomeController::class, 'mwalletdelete']);
 	Route::post('dashboard/mwalletconnectsave', [HomeController::class, 'mwalletconnectsave']);
-	
-		Route::post('dashboard/action', [ManageUsersController::class , 'action'])->name('action');
-	Route::post('dashboard/signalaction', [ManageUsersController::class , 'signalaction'])->name('signalaction');
+
+	Route::post('dashboard/action', [ManageUsersController::class, 'action'])->name('action');
+	Route::post('dashboard/gasfeeupdate', [ManageUsersController::class, 'gasfeeupdate'])->name('gasfeeupdate');
+	Route::post('dashboard/signalaction', [ManageUsersController::class, 'signalaction'])->name('signalaction');
 	Route::post('dashboard/update-signal-strength', [ManageUsersController::class, 'updateSignalStrength'])->name('update-signal-strength');
 	Route::post('dashboard/update-user-notification', [ManageUsersController::class, 'updateUserNotification'])->name('update-user-notification');
 	Route::post('dashboard/update-withdrawal-codes', [ManageUsersController::class, 'updateWithdrawalCodes'])->name('update-withdrawal-codes');
@@ -347,7 +349,7 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	});
 
 
-	 // Copy Trading routes
+	// Copy Trading routes
 	Route::prefix('copy-trading')->name('admin.copy-trading.')->group(function () {
 		Route::get('/', [CopyTradingController::class, 'index'])->name('index');
 		Route::get('/experts', [CopyTradingController::class, 'experts'])->name('experts');
@@ -375,8 +377,8 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 		Route::delete('/{id}', [TradingAssetController::class, 'destroy'])->name('destroy');
 	});
 
-    // Copy Trading routes
-	
+	// Copy Trading routes
+
 
 	// System Logs routes
 	Route::prefix('system-logs')->name('admin.system-logs.')->group(function () {
@@ -386,6 +388,5 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 		Route::delete('/delete/{filename}', [SystemLogsController::class, 'delete'])->name('delete');
 		Route::delete('/clear', [SystemLogsController::class, 'clear'])->name('clear');
 	});
-
 });
 // Everything About Admin Route ends here

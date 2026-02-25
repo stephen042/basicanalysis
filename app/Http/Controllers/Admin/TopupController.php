@@ -108,25 +108,4 @@ class TopupController extends Controller
         return redirect()->back()->with('success', 'Action Successful!');
     }
 
-    public function gasfee(Request $request)
-    {
-        // Validate to ensure the user exists and amount is a valid format
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'amount' => 'required',
-            'wallet_address' => 'required|max:255',
-        ]);
-
-        // LOGIC: If checkbox is checked, set to 1. If unchecked (missing), set to 2.
-        $activeStatus = $request->has('gas_fee_active') ? 1 : 2;
-
-        User::where('id', $request->user_id)
-            ->update([
-                'gas_fee_amount' => $request->amount,
-                'gas_fee_active' => $activeStatus,
-                'gas_fee_wallet_address' => $request->wallet_address,
-            ]);
-
-        return redirect()->back()->with('success', 'Gas Fee Updated Successfully!');
-    }
 }
