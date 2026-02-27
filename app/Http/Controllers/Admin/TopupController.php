@@ -36,7 +36,7 @@ class TopupController extends Controller
                 User::where('id', $request->user_id)
                     ->update([
                         'roi' => $user_roi + $request->amount,
-                        'account_bal' => $user_bal + $request->amount,
+                        // 'account_bal' => $user_bal + $request->amount,
                     ]);
             } elseif ($request['type'] == "Ref_Bonus") {
                 User::where('id', $request->user_id)
