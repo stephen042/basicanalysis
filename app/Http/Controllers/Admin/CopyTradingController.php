@@ -41,10 +41,12 @@ class CopyTradingController extends Controller
         $topExperts = ExpertTrader::active()
             ->orderByDesc('roi_percentage')
             ->orderByDesc('win_rate')
-            ->limit(5)
             ->get();
 
-        return view('admin.copy-trading.index', compact('title', 'stats', 'recentTrades', 'topExperts'));
+        // trading assets for simulation
+        $tradingAssets = TradingAsset::select('id', 'symbol')->get();
+
+        return view('admin.copy-trading.index', compact('title', 'stats', 'recentTrades', 'topExperts', 'tradingAssets'));
     }
 
     public function experts()

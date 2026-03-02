@@ -61,7 +61,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
                                         <div class="text-xs font-weight-bold text-uppercase mb-1">Total Volume</div>
-                                        <div class="h5 mb-0 font-weight-bold">${{ number_format($stats['total_volume']) }}</div>
+                                        <div class="h5 mb-0 font-weight-bold">${{ number_format($stats['total_volume']) }}
+                                        </div>
                                         <small>{{ $stats['total_copy_trades'] }} Copy Trades</small>
                                     </div>
                                     <div class="col-auto">
@@ -102,7 +103,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-3 mb-2">
-                                        <a href="{{ route('admin.copy-trading.create-expert') }}" class="btn btn-primary btn-block">
+                                        <a href="{{ route('admin.copy-trading.create-expert') }}"
+                                            class="btn btn-primary btn-block">
                                             <i class="fas fa-plus mr-2"></i>Create Expert Trader
                                         </a>
                                     </div>
@@ -112,12 +114,14 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                         </a>
                                     </div>
                                     <div class="col-md-3 mb-2">
-                                        <a href="{{ route('admin.copy-trading.subscriptions') }}" class="btn btn-success btn-block">
+                                        <a href="{{ route('admin.copy-trading.subscriptions') }}"
+                                            class="btn btn-success btn-block">
                                             <i class="fas fa-copy mr-2"></i>View Subscriptions
                                         </a>
                                     </div>
                                     <div class="col-md-3 mb-2">
-                                        <a href="{{ route('admin.copy-trading.analytics') }}" class="btn btn-warning btn-block">
+                                        <a href="{{ route('admin.copy-trading.analytics') }}"
+                                            class="btn btn-warning btn-block">
                                             <i class="fas fa-chart-bar mr-2"></i>Analytics
                                         </a>
                                     </div>
@@ -160,12 +164,14 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                                     </td>
                                                     <td>
                                                         <strong>{{ $trade->copySubscription->expertTrader->name }}</strong><br>
-                                                        <small class="text-muted">{{ $trade->copySubscription->expertTrader->specialization }}</small>
+                                                        <small
+                                                            class="text-muted">{{ $trade->copySubscription->expertTrader->specialization }}</small>
                                                     </td>
                                                     <td>
-                                                        @if($trade->tradingAsset)
+                                                        @if ($trade->tradingAsset)
                                                             <strong>{{ $trade->tradingAsset->symbol }}</strong><br>
-                                                            <small class="text-muted">{{ $trade->tradingAsset->name }}</small>
+                                                            <small
+                                                                class="text-muted">{{ $trade->tradingAsset->name }}</small>
                                                         @else
                                                             <span class="text-muted">N/A</span>
                                                         @endif
@@ -174,26 +180,30 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                                         <strong>${{ number_format($trade->amount, 2) }}</strong>
                                                     </td>
                                                     <td>
-                                                        <span class="font-weight-bold text-{{ $trade->pnl >= 0 ? 'success' : 'danger' }}">
+                                                        <span
+                                                            class="font-weight-bold text-{{ $trade->pnl >= 0 ? 'success' : 'danger' }}">
                                                             {{ $trade->pnl >= 0 ? '+' : '' }}${{ number_format($trade->pnl, 2) }}
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        <span class="badge badge-{{ $trade->type === 'profit' ? 'success' : 'danger' }}">
+                                                        <span
+                                                            class="badge badge-{{ $trade->type === 'profit' ? 'success' : 'danger' }}">
                                                             {{ ucfirst($trade->type) }}
                                                         </span>
                                                     </td>
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="7" class="text-center text-muted">No recent trading activity</td>
+                                                    <td colspan="7" class="text-center text-muted">No recent trading
+                                                        activity</td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
                                     </table>
                                 </div>
                                 <div class="text-center">
-                                    <a href="{{ route('admin.copy-trading.logs') }}" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ route('admin.copy-trading.logs') }}"
+                                        class="btn btn-sm btn-outline-primary">
                                         View All Trading Logs
                                     </a>
                                 </div>
@@ -210,10 +220,12 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                 @forelse($topExperts as $expert)
                                     <div class="d-flex align-items-center mb-3 pb-3 border-bottom">
                                         <div class="mr-3">
-                                            @if($expert->avatar)
-                                                <img src="{{ asset($expert->avatar) }}" alt="{{ $expert->name }}" class="rounded-circle" width="40" height="40">
+                                            @if ($expert->avatar)
+                                                <img src="{{ asset($expert->avatar) }}" alt="{{ $expert->name }}"
+                                                    class="rounded-circle" width="40" height="40">
                                             @else
-                                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" style="width: 40px; height: 40px;">
+                                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white"
+                                                    style="width: 40px; height: 40px;">
                                                     {{ substr($expert->name, 0, 1) }}
                                                 </div>
                                             @endif
@@ -223,15 +235,20 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                             <small class="text-muted">{{ $expert->specialization }}</small>
                                             <div class="row mt-1">
                                                 <div class="col-6">
-                                                    <small class="text-success">{{ number_format($expert->current_roi, 1) }}% ROI</small>
+                                                    <small
+                                                        class="text-success">{{ number_format($expert->current_roi, 1) }}%
+                                                        ROI</small>
                                                 </div>
                                                 <div class="col-6">
-                                                    <small class="text-info">{{ number_format($expert->current_win_rate, 1) }}% Win Rate</small>
+                                                    <small
+                                                        class="text-info">{{ number_format($expert->current_win_rate, 1) }}%
+                                                        Win Rate</small>
                                                 </div>
                                             </div>
                                         </div>
                                         <div>
-                                            <span class="badge badge-{{ $expert->status === 'active' ? 'success' : 'secondary' }}">
+                                            <span
+                                                class="badge badge-{{ $expert->status === 'active' ? 'success' : 'secondary' }}">
                                                 {{ ucfirst($expert->status) }}
                                             </span>
                                         </div>
@@ -240,7 +257,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                     <p class="text-muted text-center">No expert traders available</p>
                                 @endforelse
                                 <div class="text-center">
-                                    <a href="{{ route('admin.copy-trading.experts') }}" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ route('admin.copy-trading.experts') }}"
+                                        class="btn btn-sm btn-outline-primary">
                                         Manage All Experts
                                     </a>
                                 </div>
@@ -257,14 +275,15 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                 <h6 class="m-0 font-weight-bold text-primary">Manual Trade Simulation</h6>
                             </div>
                             <div class="card-body">
-                                <form action="{{ route('admin.copy-trading.simulate-trade') }}" method="POST" class="row">
+                                <form action="{{ route('admin.copy-trading.simulate-trade') }}" method="POST"
+                                    class="row">
                                     @csrf
                                     <div class="col-md-3">
                                         <div class="form-group">
                                             <label for="expert_trader_id">Expert Trader</label>
                                             <select name="expert_trader_id" class="form-control" required>
                                                 <option value="">Select Expert</option>
-                                                @foreach($topExperts as $expert)
+                                                @foreach ($topExperts as $expert)
                                                     <option value="{{ $expert->id }}">{{ $expert->name }}</option>
                                                 @endforeach
                                             </select>
@@ -273,7 +292,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                     <div class="col-md-2">
                                         <div class="form-group">
                                             <label for="amount">Amount ($)</label>
-                                            <input type="number" name="amount" class="form-control" min="1" step="0.01" required>
+                                            <input type="number" name="amount" class="form-control" min="1"
+                                                step="0.01" required>
                                         </div>
                                     </div>
                                     <div class="col-md-2">
@@ -290,7 +310,9 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                             <label for="asset_id">Trading Asset (Optional)</label>
                                             <select name="asset_id" class="form-control">
                                                 <option value="">Select Asset</option>
-                                                <!-- Add trading assets here if needed -->
+                                                @foreach ($tradingAssets as $asset)
+                                                    <option value="{{ $asset->id }}">{{ $asset->symbol }}</option>
+                                                @endforeach
                                             </select>
                                         </div>
                                     </div>
