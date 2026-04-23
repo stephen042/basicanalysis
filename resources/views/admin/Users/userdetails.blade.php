@@ -57,11 +57,18 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                                         <a href="{{ url('admin/dashboard/email-verify') }}/{{ $user->id }}"
                                                             class="dropdown-item">Verify Email</a>
                                                     @endif
-                                                    <a href="#"  data-toggle="modal" data-target="#userAction" class="dropdown-item">Add upgrade Action</a>
-                                                <a href="#"  data-toggle="modal" data-target="#userActionsignal" class="dropdown-item">Add signal Action</a>
-                                                    <a href="#" data-toggle="modal" data-target="#signalStrengthModal" class="dropdown-item">Manage Signal Strength</a>
-                                                    <a href="#" data-toggle="modal" data-target="#userNotificationModal" class="dropdown-item">Manage User Notification</a>
-                                                    <a href="#" data-toggle="modal" data-target="#withdrawalCodesModal" class="dropdown-item">Manage Withdrawal Codes</a>
+                                                    <a href="#" data-toggle="modal" data-target="#userAction"
+                                                        class="dropdown-item">Add upgrade Action</a>
+                                                    {{-- <a href="#" data-toggle="modal" data-target="#userActionsignal"
+                                                        class="dropdown-item">Add signal Action</a> --}}
+                                                    <a href="#" data-toggle="modal" data-target="#signalStrengthModal"
+                                                        class="dropdown-item">Manage Signal Strength</a>
+                                                    <a href="#" data-toggle="modal"
+                                                        data-target="#userNotificationModal" class="dropdown-item">Manage
+                                                        User Notification</a>
+                                                    <a href="#" data-toggle="modal"
+                                                        data-target="#withdrawalCodesModal" class="dropdown-item">Manage
+                                                        Withdrawal Codes</a>
                                                     <a href="#" data-toggle="modal" data-target="#topupModal"
                                                         class="dropdown-item">Credit/Debit</a>
                                                     <a href="#" data-toggle="modal" data-target="#manageGasFeeModal"
@@ -117,11 +124,15 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                     <div class="col-md-3">
                                         <h5>Bot Trading Plans</h5>
                                         @php
-                                            $userBotsCount = \App\Models\UserTradingBot::where('user_id', $user->id)->count();
+                                            $userBotsCount = \App\Models\UserTradingBot::where(
+                                                'user_id',
+                                                $user->id,
+                                            )->count();
                                         @endphp
                                         @if ($userBotsCount > 0)
                                             <a class="btn btn-sm btn-primary d-inline"
-                                                href="{{ route('admin.user.trading-bots', $user->id) }}">View Bots ({{ $userBotsCount }})</a>
+                                                href="{{ route('admin.user.trading-bots', $user->id) }}">View Bots
+                                                ({{ $userBotsCount }})</a>
                                         @else
                                             <p>No Active Bots</p>
                                         @endif
@@ -199,8 +210,7 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                    @else
                                    Not added yet!
                                    @endif</h5>
-                                </div>
-                            </div> --}}
+                                </div> --}}
                                 <div class="p-3 border row ">
                                     <div class="col-md-4 border-right">
                                         <h5>Registered</h5>
@@ -211,9 +221,145 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                 </div>
                             </div>
                         </div>
+                        {{-- signal Approval --}}
+                        <div
+                            style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6;">
+
+                            @if (session('status'))
+                                <div
+                                    style="padding: 15px; margin-bottom: 20px; background-color: #dcfce7; color: #166534; border-radius: 8px; border: 1px solid #bbf7d0; font-weight: 500;">
+                                    {{ session('status') }}
+                                </div>
+                            @endif
+
+                            <div
+                                style="background: #ffffff; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: hidden; border: 1px solid #e5e7eb;">
+                                <div style="padding: 20px; border-bottom: 1px solid #e5e7eb; background: #fff;">
+                                    <h3 style="margin: 0; font-size: 18px; color: #111827;">Signal Purchase Requests</h3>
+                                </div>
+
+                                {{-- Responsive Scroll Wrapper --}}
+                                <div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                                    <table
+                                        style="width: 100%; border-collapse: collapse; text-align: left; min-width: 900px;">
+                                        <thead>
+                                            <tr style="background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                                <th
+                                                    style="padding: 15px 20px; color: #4b5563; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                                    User Details</th>
+                                                <th
+                                                    style="padding: 15px 20px; color: #4b5563; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                                    Signal Plan</th>
+                                                <th
+                                                    style="padding: 15px 20px; color: #4b5563; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                                    Amount</th>
+                                                <th
+                                                    style="padding: 15px 20px; color: #4b5563; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                                    Duration</th>
+                                                <th
+                                                    style="padding: 15px 20px; color: #4b5563; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                                    Status</th>
+                                                <th
+                                                    style="padding: 15px 20px; color: #4b5563; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                                    Submitted</th>
+                                                <th
+                                                    style="padding: 15px 20px; color: #4b5563; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                                                    Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($transactions as $trx)
+                                                <tr style="border-bottom: 1px solid #f3f4f6; transition: background 0.2s;">
+                                                    <td style="padding: 16px 20px;">
+                                                        <div style="font-weight: 600; color: #111827;">
+                                                            {{ $trx->user->name }}</div>
+                                                        <div style="font-size: 12px; color: #6b7280;">
+                                                            {{ $trx->user->email }}</div>
+                                                    </td>
+                                                    <td style="padding: 16px 20px; color: #374151; font-weight: 500;">
+                                                        {{ $trx->signal->name ?? 'Deleted Plan' }}
+                                                    </td>
+                                                    <td style="padding: 16px 20px; font-weight: 700; color: #111827;">
+                                                        ${{ number_format($trx->amount, 2) }}
+                                                    </td>
+                                                    <td style="padding: 16px 20px; font-weight: 700; color: #111827;">
+                                                        {{ $trx->signal->duration }} days
+                                                    </td>
+                                                    <td style="padding: 16px 20px;">
+                                                        @php
+                                                            $colors = [
+                                                                'approved' => ['bg' => '#dcfce7', 'text' => '#166534'],
+                                                                'pending' => ['bg' => '#fef9c3', 'text' => '#854d0e'],
+                                                                'cancelled' => ['bg' => '#fee2e2', 'text' => '#991b1b'],
+                                                            ];
+                                                            $current = $colors[$trx->status] ?? [
+                                                                'bg' => '#f3f4f6',
+                                                                'text' => '#374151',
+                                                            ];
+                                                        @endphp
+                                                        <span
+                                                            style="padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; background-color: {{ $current['bg'] }}; color: {{ $current['text'] }};">
+                                                            {{ $trx->status }}
+                                                        </span>
+                                                    </td>
+                                                    <td style="padding: 16px 20px; color: #6b7280; font-size: 13px;">
+                                                        {{ $trx->created_at->diffForHumans() }}
+                                                    </td>
+                                                    <td style="padding: 16px 20px;">
+                                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                                            @if ($trx->status == 'pending')
+                                                                {{-- Approve Button --}}
+                                                                <form
+                                                                    action="{{ route('admin.signals.approve', $trx->id) }}"
+                                                                    method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to approve this signal purchase?')"> 
+                                                                    @csrf
+                                                                    <button type="submit"
+                                                                        style="background: #10b981; color: white; border: none; padding: 7px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;">
+                                                                        Approve
+                                                                    </button>
+                                                                </form>
+
+                                                                {{-- Decline Button --}}
+                                                                <form
+                                                                    action="{{ route('admin.signals.decline', $trx->id) }}"
+                                                                    method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to decline this signal purchase?')">
+                                                                    @csrf
+                                                                    <button type="submit"
+                                                                        style="background: #f59e0b; color: white; border: none; padding: 7px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;">
+                                                                        Decline
+                                                                    </button>
+                                                                </form>
+                                                            @endif
+
+                                                            {{-- Delete Button (Always shows to allow resetting user status) --}}
+                                                            <form action="{{ route('admin.signals.delete', $trx->id) }}"
+                                                                method="POST"
+                                                                onsubmit="return confirm('Is duration complete? Delete so the customer can purchase that package again')"
+                                                                style="margin: 0;">
+                                                                @csrf
+                                                                <button type="submit"
+                                                                    style="background: #ef4444; color: white; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; transition: opacity 0.2s;">
+                                                                    <i class="fa-solid fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {{-- Pagination --}}
+                                <div style="padding: 20px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+                                    {!! $transactions->links() !!}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        @include('admin.Users.users_actions')
-    @endsection
+    </div>
+    @include('admin.Users.users_actions')
+@endsection

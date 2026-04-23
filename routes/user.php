@@ -183,6 +183,8 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('dashboard')->group(func
 
 		//signals
 		Route::get('/trade-signals', [ViewsController::class, 'tradeSignals'])->name('tsignals');
+		Route::get('/trade-signals/{signal}/purchase-signal', [ViewsController::class, 'purchaseSignal'])->name('purchase-signal');
+		Route::post('/trade-signals/{signal}/purchase-signal', [ViewsController::class, 'purchaseSignalPost'])->name('purchase-signal-post');
 		Route::get('/renew-subscription', [TransferController::class, 'renewSignalSub'])->name('renewsignals');
 
 		// Trading Bots routes

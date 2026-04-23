@@ -3,31 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\Settings;
-use App\Models\Plans;
-use App\Models\Agent;
-use App\Models\User_plans;
-use App\Models\Deposit;
-use App\Models\Withdrawal;
-use App\Models\Tp_Transaction;
+use App\Mail\NewNotification;
 use App\Models\Activity;
-use App\Models\TradingBot;
-use App\Models\UserTradingBot;
-use App\Models\TradingLog;
+use App\Models\Agent;
 use App\Models\CopySubscription;
 use App\Models\CopyTrade;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
-use App\Mail\NewNotification;
+use App\Models\Deposit;
 use App\Models\Kyc;
+use App\Models\Plans;
+use App\Models\Settings;
+use App\Models\SignalTransaction;
+use App\Models\Tp_Transaction;
+use App\Models\TradingBot;
+use App\Models\TradingLog;
+use App\Models\User_plans;
+use App\Models\User;
+use App\Models\UserTradingBot;
+use App\Models\Withdrawal;
 use App\Services\NotificationService;
 use App\Traits\PingServer;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ManageUsersController extends Controller
 {
@@ -114,13 +115,42 @@ class ManageUsersController extends Controller
     public function viewuser($id)
     {
         $user = User::where('id', $id)->first();
+        $transactions = SignalTransaction::with(['user', 'signal'])->latest()->paginate(10);
         return view('admin.Users.userdetails', [
             'user' => $user,
             'pl' => Plans::orderByDesc('id')->get(),
             'bots' => TradingBot::where('status', 'active')->orderByDesc('id')->get(),
             'title' => "Manage $user->name",
+            'transactions' => $transactions,
         ]);
     }
+
+    public function approve($id)
+    {
+        $transaction = SignalTransaction::findOrFail($id);
+        $transaction->update(['status' => 'approved']);
+
+        return back()->with('status', 'Signal subscription approved successfully.');
+    }
+
+    public function decline($id)
+    {
+        $transaction = SignalTransaction::findOrFail($id);
+        $transaction->update(['status' => 'cancelled']);
+
+        return back()->with('status', 'Signal subscription declined.');
+    }
+
+    public function delete($id)
+    {
+        $transaction = SignalTransaction::findOrFail($id);
+
+        // Optional: Add a check if you only want to delete approved or expired ones
+        $transaction->delete();
+
+        return back()->with('status', 'Transaction record deleted successfully. The user can now purchase a new plan.');
+    }
+
     //block user
     public function ublock($id)
     {

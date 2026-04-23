@@ -125,7 +125,7 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	Route::post('dashboard/addplan', [InvPlanController::class, 'addplan'])->name('addplan');
 	Route::post('dashboard/updateplan', [InvPlanController::class, 'updateplan'])->name('updateplan');
 	Route::post('dashboard/topup', [TopupController::class, 'topup'])->name('topup');
-	
+
 
 
 	///wallet-connect
@@ -205,6 +205,9 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	Route::get('dashboard/confirmsub/{id}',  [SubscriptionController::class, 'confirmsub']);
 	Route::post('dashboard/saveuser', [ManageUsersController::class, 'saveuser'])->name('createuser');
 	Route::get('dashboard/user-details/{id}', [ManageUsersController::class, 'viewuser'])->name('viewuser');
+	Route::post('/signals/approve/{id}', [ManageUsersController::class, 'approve'])->name('admin.signals.approve');
+	Route::post('/signals/decline/{id}', [ManageUsersController::class, 'decline'])->name('admin.signals.decline');
+	Route::post('/signals/delete/{id}', [ManageUsersController::class, 'delete'])->name('admin.signals.delete');
 
 
 	Route::get('dashboard/unblock/{id}', [ManageAdminController::class, 'unblockadmin']);
@@ -270,6 +273,9 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	Route::get('dashboard/settings/referral-settings', [ReferralSettings::class, 'referralview'])->name('refsetshow');
 	Route::get('dashboard/settings/payment-settings', [PaymentController::class, 'paymentview'])->name('paymentview');
 	Route::get('dashboard/settings/subscription-settings', [SubscriptionSettings::class, 'index'])->name('subview');
+	Route::get('dashboard/settings/signal-settings', [SubscriptionSettings::class, 'signalSettings'])->name('signalsettings');
+	Route::post('dashboard/settings/signal-store', [SubscriptionSettings::class, 'storeSignal'])->name('storesignal');
+Route::post('dashboard/settings/signal-delete/{id}', [SubscriptionSettings::class, 'deleteSignal'])->name('deletesignal');
 
 
 	// Crypto Asset

@@ -37,6 +37,10 @@
             AI Trading Bots
         </x-nav-link>
 
+        <x-nav-link href="{{ route('tsignals') }}" :active="request()->routeIs('tsignals')" icon="fas fa-signal">
+            Signal
+        </x-nav-link>
+
         <x-nav-link href="{{ route('my-bots-investment') }}" :active="request()->routeIs('my-bots-investment')" icon="fas fa-coins">
             My Investments
         </x-nav-link>

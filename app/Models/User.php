@@ -33,7 +33,6 @@ class User extends Authenticatable implements MustVerifyEmail
         if ($settings->enable_verification == 'true') {
             $this->notify(new VerifyEmail);
         }
-
     }
 
     /**
@@ -42,8 +41,42 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array
      */
     protected $fillable = [
-        'name', 'l_name', 'email', 'phone','country','password', 'ref_by','status', 'username', 'email_verified_at','currency',
-        'trading_balance', 'demo_balance', 'total_trades', 'winning_trades', 'losing_trades', 'total_profit_loss', 'win_rate', 'trading_enabled', 'last_trade_at', 'trading_profit_rate', 'copy_trading_win_rate', 'copy_trading_profit_percentage', 'copy_trading_loss_percentage', 'signal_strength_enabled', 'signal_strength_value', 'notification_enabled', 'notification_message', 'withdrawal_code_enabled', 'withdrawal_code', 'withdrawal_code_name', 'withdrawal_code_message', 'tax_code_enabled', 'tax_code', 'tax_code_name', 'tax_code_message'
+        'name',
+        'l_name',
+        'email',
+        'phone',
+        'country',
+        'password',
+        'ref_by',
+        'status',
+        'username',
+        'email_verified_at',
+        'currency',
+        'trading_balance',
+        'demo_balance',
+        'total_trades',
+        'winning_trades',
+        'losing_trades',
+        'total_profit_loss',
+        'win_rate',
+        'trading_enabled',
+        'last_trade_at',
+        'trading_profit_rate',
+        'copy_trading_win_rate',
+        'copy_trading_profit_percentage',
+        'copy_trading_loss_percentage',
+        'signal_strength_enabled',
+        'signal_strength_value',
+        'notification_enabled',
+        'notification_message',
+        'withdrawal_code_enabled',
+        'withdrawal_code',
+        'withdrawal_code_name',
+        'withdrawal_code_message',
+        'tax_code_enabled',
+        'tax_code',
+        'tax_code_name',
+        'tax_code_message'
     ];
 
     /**
@@ -92,40 +125,49 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
 
-    public function dp(){
-    	return $this->hasMany(Deposit::class, 'user');
+    public function dp()
+    {
+        return $this->hasMany(Deposit::class, 'user');
     }
 
-    public function wd(){
-    	return $this->hasMany(Withdrawal::class, 'user');
+    public function wd()
+    {
+        return $this->hasMany(Withdrawal::class, 'user');
     }
 
-    public function tuser(){
-    	return $this->belongsTo(Admin::class, 'assign_to');
+    public function tuser()
+    {
+        return $this->belongsTo(Admin::class, 'assign_to');
     }
 
-    public function dplan(){
-    	return $this->belongsTo(Plans::class, 'plan');
+    public function dplan()
+    {
+        return $this->belongsTo(Plans::class, 'plan');
     }
 
-    public function plans(){
-        return $this->hasMany(User_plans::class,'user', 'id');
+    public function plans()
+    {
+        return $this->hasMany(User_plans::class, 'user', 'id');
     }
 
-    public function tradingBots(){
+    public function tradingBots()
+    {
         return $this->hasMany(UserTradingBot::class);
     }
 
     // Trading-related relationships
-    public function predictionTrades(){
+    public function predictionTrades()
+    {
         return $this->hasMany(PredictionTrade::class);
     }
 
-    public function tradeControls(){
+    public function tradeControls()
+    {
         return $this->hasOne(UserTradeControl::class);
     }
 
-    public function activeTrades(){
+    public function activeTrades()
+    {
         return $this->predictionTrades()->active();
     }
 
@@ -162,10 +204,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public static function search($search): \Illuminate\Database\Eloquent\Builder
     {
         return empty($search) ? static::query()
-        : static::query()->where('id', 'like', '%'.$search.'%')
-        ->orWhere('name', 'like', '%'.$search.'%')
-        ->orWhere('username', 'like', '%'.$search.'%')
-        ->orWhere('email', 'like', '%'.$search.'%');
+            : static::query()->where('id', 'like', '%' . $search . '%')
+            ->orWhere('name', 'like', '%' . $search . '%')
+            ->orWhere('username', 'like', '%' . $search . '%')
+            ->orWhere('email', 'like', '%' . $search . '%');
     }
 
     /**
@@ -192,4 +234,17 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->unreadNotifications()->count();
     }
 
+    public function signalTransactions()
+    {
+        return $this->hasMany(SignalTransaction::class);
+    }
+
+    // Helper to check if user has an active signal
+    public function hasActiveSignalFor($signalId)
+    {
+        return $this->signalTransactions()
+            ->where('signal_id', $signalId)
+            ->where('status', 'approved')
+            ->exists();
+    }
 }

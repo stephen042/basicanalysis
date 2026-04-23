@@ -2,31 +2,35 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Http\Controllers\Botman\SignalConversation;
 use App\Http\Controllers\Controller;
-use App\Models\CryptoAccount;
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\Settings;
-use App\Models\Plans;
-use App\Models\User_plans;
-use App\Models\UserTradingBot;
-use App\Models\Mt4Details;
-use App\Models\ExpertTrader;
+use App\Mail\GasFeeMail;
+use App\Mail\NewNotification;
 use App\Models\CopySubscription;
+use App\Models\CryptoAccount;
 use App\Models\Deposit;
+use App\Models\ExpertTrader;
+use App\Models\Mt4Details;
+use App\Models\Plans;
+use App\Models\Settings;
 use App\Models\SettingsCont;
+use App\Models\Signal;
+use App\Models\SignalTransaction;
+use App\Models\Tp_Transaction;
+use App\Models\TradingLog;
+use App\Models\User_plans;
+use App\Models\User;
+use App\Models\UserTradingBot;
+use App\Models\Wallets;
 use App\Models\Wdmethod;
 use App\Models\Withdrawal;
-use App\Models\Tp_Transaction;
 use App\Traits\PingServer;
-use App\Models\Wallets;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use App\Models\TradingLog;
 use Carbon\Carbon;
-use App\Mail\GasFeeMail;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ViewsController extends Controller
 {
@@ -370,23 +374,72 @@ class ViewsController extends Controller
     {
         $settings = Settings::where('id', 1)->first();
         $mod = $settings->modules;
-        if (!$mod['signal']) {
-            abort(404);
-        }
-
-        $response = $this->fetctApi('/subscription', [
-            'id' => auth()->user()->id
-        ]);
-        $res = json_decode($response);
-
-        $responseSt = $this->fetctApi('/signal-settings');
-        $info = json_decode($responseSt);
+        // if (!$mod['signal']) {
+        //     abort(404);
+        // }
 
         return view('user.signals.subscribe', [
             'title' => 'Trade signals',
-            'subscription' => $res->data,
-            'set' => $info->data->settings,
         ]);
+    }
+
+    public function purchaseSignal(Signal $signal)
+    {
+        $settings = Settings::where('id', 1)->first();
+        $mod = $settings->modules;
+        // if (!$mod['signal']) {
+        //     abort(404);
+        // }
+        $paymethod = Wdmethod::where(function ($query) {
+            $query->where('type', '=', 'deposit')
+                ->orWhere('type', '=', 'both');
+        })->where('status', 'enabled')->orderByDesc('id')->get();
+        
+
+        return view('user.signals.purchase', [
+            'title' => 'Purchase signals',
+            'signal' => $signal,
+            'paymethod' => $paymethod,
+        ]);
+    }
+
+    public function purchaseSignalPost(Request $request, $signalId)
+    {
+        $user = Auth::user();
+
+        // Get signal safely
+        $signal = Signal::findOrFail($signalId);
+
+        $settings = Settings::first();
+
+        // 1. Create Transaction
+        $transaction = SignalTransaction::create([
+            'user_id' => $user->id,
+            'signal_id' => $signal->id,
+            'amount' => $signal->amount,
+            'status' => 'pending',
+        ]);
+
+        // 2. Email to User
+        $userMessage = "You have successfully initiated a purchase for the {$signal->name} Signal plan. Please complete your XRP payment to activate your subscription.";
+        $userSubject = "Signal Purchase Initiated";
+
+        Mail::to($user->email)->send(
+            new NewNotification($userMessage, $userSubject, $user->name)
+        );
+
+        // 3. Email to Admin
+        $adminMessage = "User {$user->name} has initiated a purchase for the {$signal->name} ($ {$signal->amount}). Please check the dashboard for pending confirmation.";
+        $adminSubject = "New Signal Purchase Request";
+
+        Mail::to($settings->contact_email)->send(
+            new NewNotification($adminMessage, $adminSubject, 'Admin')
+        );
+
+        // 4. Redirect with success
+        return redirect()
+            ->route('tsignals')
+            ->with('success', 'Purchase initiated! Please follow the payment instructions.');
     }
 
 

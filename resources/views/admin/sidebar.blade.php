@@ -451,6 +451,11 @@
                                     </a>
                                 </li>
                                 <li>
+                                    <a href="{{ route('signalsettings') }}">
+                                        <span class="sub-item">Signal Settings</span>
+                                    </a>
+                                </li>
+                                <li>
                                 <!--    <a href="{{ url('/admin/dashboard/frontpage') }}">-->
                                 <!--        <span class="sub-item">Frontend Settings</span>-->
                                 <!--    </a>-->
