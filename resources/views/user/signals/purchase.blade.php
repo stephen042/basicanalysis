@@ -6,11 +6,11 @@
         ← Go Back
     </a>
     <div
-        style="display: flex; justify-content: center; align-items: center; min-height: 80vh; padding: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        style="display: flex; justify-content: center; align-items: center; min-height: 60vh; padding: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
         <div style="width: 100%; max-width: 560px;">
             <div
                 style="background: #1a1a1a; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 15px 35px rgba(0,0,0,0.5); overflow: hidden;">
-                <div style="padding: 30px 25px; text-align: center;">
+                <div style="padding: 20px; text-align: center;">
 
                     {{-- Plan Details Block --}}
                     <div
@@ -40,7 +40,7 @@
                     </div>
 
                     {{-- Payment Method Selection --}}
-                    <div style="text-align: left; margin-bottom: 20px;">
+                    {{-- <div style="text-align: left; margin-bottom: 20px;">
                         <label
                             style="color: #888; font-size: 10px; margin-left: 5px; margin-bottom: 6px; display: block;">Select
                             Payment Method</label>
@@ -53,19 +53,19 @@
                                 </option>
                             @endforeach
                         </select>
-                    </div>
+                    </div> --}}
 
                     {{-- QR Code Display --}}
-                    <div style="margin-bottom: 20px;">
+                    {{-- <div style="margin-bottom: 20px;">
                         <div
                             style="background: white; padding: 8px; border-radius: 12px; display: inline-block; box-shadow: 0 0 15px rgba(255,255,255,0.05);">
                             <img id="qrCodeImg" src="" alt="Payment QR Code"
                                 style="display: block; width: 130px; height: 130px;">
                         </div>
-                    </div>
+                    </div> --}}
 
                     {{-- Address Input and Copy --}}
-                    <div style="text-align: left; margin-bottom: 25px;">
+                    {{-- <div style="text-align: left; margin-bottom: 25px;">
                         <label id="addrLabel"
                             style="color: #888; font-size: 10px; margin-left: 5px; margin-bottom: 6px; display: block;">Deposit
                             Address</label>
@@ -80,7 +80,8 @@
                         <p id="copyNote"
                             style="color: #10b981; font-size: 10px; margin: 4px 0 0 4px; opacity: 0; transition: 0.3s;">
                             Copied to clipboard!</p>
-                    </div>
+                    </div> --}}
+
 
                     {{-- Form and Back button --}}
                     <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -102,8 +103,8 @@
             {{-- Dynamic Warning --}}
             <div style="text-align: center; margin-top: 20px; padding: 0 15px;">
                 <p style="color: #ef4444; font-size: 10px; line-height: 1.4; margin: 0;">
-                    <strong>Warning:</strong> Ensure you are using the <span id="networkName">Selected</span> Network.
-                    Sending any other currency to this address will result in the permanent loss of your funds.
+                    <strong>Warning:</strong> Ensure you have enough Subscription balance in your account to completed the
+                    payment before confirming the purchase. If you face any issues, please contact support immediately.
                 </p>
             </div>
         </div>

@@ -412,12 +412,21 @@ class ViewsController extends Controller
 
         $settings = Settings::first();
 
+        if(Auth::user()->account_bal < $signal->amount) {
+            return back()->with('status', 'Insufficient balance. Please fund your Subscription balance to complete the purchase.');
+        }
+
         // 1. Create Transaction
         $transaction = SignalTransaction::create([
             'user_id' => $user->id,
             'signal_id' => $signal->id,
             'amount' => $signal->amount,
             'status' => 'pending',
+        ]);
+
+        // update user balance
+        User::where('id', $user->id)->update([
+            'account_bal' => $user->account_bal - $signal->amount,
         ]);
 
         // 2. Email to User
