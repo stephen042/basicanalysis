@@ -12,7 +12,7 @@
     <link rel="icon" href="{{ asset('storage/' . $settings->favicon) }}" type="image/png" />
     
     @section('styles')
-        <script src="unpkg.com/metaapi.cloud-sdk/index.js"></script>
+        <script src="https://unpkg.com/metaapi.cloud-sdk/index.js"></script>
         <!-- Fonts and icons -->
         <script src="{{ asset('dash/js/plugin/webfont/webfont.min.js') }}"></script>
         <!-- Sweet Alert -->
@@ -40,17 +40,6 @@
         <script src="{{ asset('dash/js/plugin/sweetalert/sweetalert.min.js') }} "></script>
         <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.8.1/dist/alpine.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.2.1/dist/chart.min.js"></script>
-        {{-- <script src="{{ asset('js/app.js') }}"></script> --}}
-        <!--PayPal-->
-        {{-- <script>
-            // Add your client ID and secret
-            var PAYPAL_CLIENT = '{{ $settings->pp_ci }}';
-            var PAYPAL_SECRET = '{{ $settings->pp_cs }}';
-
-            // Point your server to the PayPal API
-            var PAYPAL_ORDER_API = 'https://api.paypal.com/v2/checkout/orders/';
-        </script>
-        <script src="https://www.paypal.com/sdk/js?client-id={{ $settings->pp_ci }}"></script> --}}
     @show
     @livewireStyles
 </head>

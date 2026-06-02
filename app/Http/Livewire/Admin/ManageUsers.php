@@ -55,10 +55,13 @@ class ManageUsers extends Component
         'password' => 'required|min:8',
     ];
 
+    public function updatingSearchvalue()
+    {
+        $this->resetPage();
+    }
 
     public function getUsersProperty()
     {
-
         return User::search($this->searchvalue)
             ->orderBy($this->orderby, $this->orderdirection)
             ->paginate($this->pagenum);
@@ -66,9 +69,6 @@ class ManageUsers extends Component
 
     public function render()
     {
-        if ($this->selectAll) {
-            $this->checkrecord = $this->users->pluck('id')->map(fn($id) => (string) $id);
-        }
         return view('livewire.admin.manage-users', [
             'users' => $this->users,
             'plans' => Plans::all(),

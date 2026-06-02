@@ -37,9 +37,9 @@ class AppServiceProvider extends ServiceProvider
             return new Filesystem(new SftpAdapter($config));
         });
 
-        // Paginator::useBootstrap();
-        Paginator::defaultView('vendor.pagination.tailwind');
-        Paginator::defaultSimpleView('vendor.pagination.tailwind');
+        Paginator::useBootstrap();
+        // Paginator::defaultView('vendor.pagination.tailwind');
+        // Paginator::defaultSimpleView('vendor.pagination.tailwind');
 
         // Sharing settings with all view
         $settings = Settings::where('id', '1')->first();

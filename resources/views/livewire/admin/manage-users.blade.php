@@ -140,7 +140,7 @@
                             </div>
                             <div class="card-footer  py-2">
                                 <div class="row flex-between-center">
-                                    <div class="col-auto">
+                                    {{-- <div class="col-auto">
                                         <select wire:model='pagenum' class="form-control  text-{{ $text }}">
                                             <option>10</option>
                                             <option>20</option>
@@ -163,9 +163,9 @@
                                             <option value="desc">Descending</option>
                                             <option value="asc">Ascending</option>
                                         </select>
-                                    </div>
+                                    </div> --}}
                                     <div class="col-auto">
-                                        {!! $users->links() !!}
+                                        {{ $users->links() }}
                                     </div>
                                 </div>
                             </div>
@@ -183,8 +183,7 @@
             <div class="modal-content">
                 <div class="modal-header ">
                     <h3 class="mb-2 d-inline text-{{ $text }}">Add User</h3>
-                    <button type="button" class="close text-{{ $text }}" data-dismiss="modal"
-                        aria-h6="Close">
+                    <button type="button" class="close text-{{ $text }}" data-dismiss="modal" aria-h6="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -201,8 +200,8 @@
                                 </div>
                                 <div class="form-group col-md-12">
                                     <h6 class="text-{{ $text }}">Fullname</h6>
-                                    <input type="text" class="form-control  text-{{ $text }}"
-                                        name="name" wire:model.defer='fullname' required>
+                                    <input type="text" class="form-control  text-{{ $text }}" name="name"
+                                        wire:model.defer='fullname' required>
                                 </div>
                                 <div class="form-group col-md-12">
                                     <h6 class="text-{{ $text }}">Email</h6>
