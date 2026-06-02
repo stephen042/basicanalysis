@@ -83,12 +83,12 @@
                                 </div>
                             </div>
                             <div class="card-body">
-                                <div class="table-responsive" data-example-id="hoverable-table">
-                                    <table class="table table-hover text-{{ $text }}">
+                                <div class="table-responsive">
+                                    <table id="usersTable" class="table table-hover text-{{ $text }}">
                                         <thead>
                                             <tr>
-                                                <th class="white-space-nowrap">
-                                                    <input type="checkbox" wire:model='selectPage' />
+                                                <th>
+                                                    <input type="checkbox" id="selectAll">
                                                 </th>
                                                 <th>Client Name</th>
                                                 <th>Username</th>
@@ -99,74 +99,40 @@
                                                 <th>Action</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="userslisttbl">
 
-                                            @forelse ($users as $user)
+                                        <tbody>
+                                            @foreach ($users as $user)
                                                 <tr>
-                                                    <td class="align-middle">
-                                                        <input type="checkbox" wire:model='checkrecord'
-                                                            value="{{ $user->id }}" />
+                                                    <td>
+                                                        <input type="checkbox" class="row-check"
+                                                            value="{{ $user->id }}">
                                                     </td>
+
                                                     <td>{{ $user->name }}</td>
                                                     <td>{{ $user->username }}</td>
                                                     <td>{{ $user->email }}</td>
                                                     <td>{{ $user->phone }}</td>
+
                                                     <td>
                                                         @if ($user->status == 'active')
-                                                            <span
-                                                                class='badge badge-success'>{{ $user->status }}</span>
+                                                            <span class="badge badge-success">active</span>
                                                         @else
-                                                            <span class='badge badge-danger'>{{ $user->status }}</span>
+                                                            <span class="badge badge-danger">{{ $user->status }}</span>
                                                         @endif
                                                     </td>
+
+                                                    <td>{{ $user->created_at->diffForHumans() }}</td>
+
                                                     <td>
-                                                        {{ $user->created_at->diffForHumans() }}
-                                                    </td>
-                                                    <td>
-                                                        <a class='btn btn-secondary btn-sm'
-                                                            href="{{ route('viewuser', $user->id) }}" role='button'>
+                                                        <a class="btn btn-secondary btn-sm"
+                                                            href="{{ route('viewuser', $user->id) }}">
                                                             Manage
                                                         </a>
                                                     </td>
                                                 </tr>
-                                            @empty
-                                                <td colspan="9">
-                                                    No Data Available
-                                                </td>
-                                            @endforelse
+                                            @endforeach
                                         </tbody>
                                     </table>
-                                </div>
-                            </div>
-                            <div class="card-footer  py-2">
-                                <div class="row flex-between-center">
-                                    {{-- <div class="col-auto">
-                                        <select wire:model='pagenum' class="form-control  text-{{ $text }}">
-                                            <option>10</option>
-                                            <option>20</option>
-                                            <option>50</option>
-                                            <option>100</option>
-                                            <option>200</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-auto">
-                                        <select wire:model='orderby' class="form-control  text-{{ $text }}">
-                                            <option value="id">id</option>
-                                            <option value="name">Name</option>
-                                            <option value="email">Email</option>
-                                            <option value="created_at">Sign up date</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-auto">
-                                        <select wire:model='orderdirection'
-                                            class="form-control  text-{{ $text }}">
-                                            <option value="desc">Descending</option>
-                                            <option value="asc">Ascending</option>
-                                        </select>
-                                    </div> --}}
-                                    <div class="col-auto">
-                                        {{ $users->links() }}
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -205,8 +171,8 @@
                                 </div>
                                 <div class="form-group col-md-12">
                                     <h6 class="text-{{ $text }}">Email</h6>
-                                    <input type="email" class="form-control  text-{{ $text }}"
-                                        name="email" wire:model.defer='email' required>
+                                    <input type="email" class="form-control  text-{{ $text }}" name="email"
+                                        wire:model.defer='email' required>
                                 </div>
                                 <div class="form-group col-md-12">
                                     <h6 class="text-{{ $text }}">Password</h6>

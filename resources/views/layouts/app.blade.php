@@ -10,7 +10,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $settings->site_name }} | {{ $title }}</title>
     <link rel="icon" href="{{ asset('storage/' . $settings->favicon) }}" type="image/png" />
-    
+
     @section('styles')
         <script src="https://unpkg.com/metaapi.cloud-sdk/index.js"></script>
         <!-- Fonts and icons -->
@@ -40,8 +40,13 @@
         <script src="{{ asset('dash/js/plugin/sweetalert/sweetalert.min.js') }} "></script>
         <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.8.1/dist/alpine.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.2.1/dist/chart.min.js"></script>
+
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+        @livewireStyles
     @show
-    @livewireStyles
 </head>
 
 <body data-background-color="light">
@@ -57,18 +62,18 @@
                         <div class="text-center row copyright text-align-center">
                             <p>All Rights Reserved &copy; {{ $settings->site_name }} {{ date('Y') }}</p> <br>
                             @if ($settings->google_translate == 'on')
-                                <div class="text-center">
+<div class="text-center">
                                     <div id="google_translate_element"></div>
                                 </div>
-                            @endif
+@endif
                         </div>
                     </div>
                 </footer> -->
             </div>
         </div>
     </div>
-    @livewireScripts
     @section('scripts')
+        <script src="https://unpkg.com/livewire@2.10.7/dist/livewire.js"></script>
         <!--   Core JS Files   -->
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
         {{-- <script src="{{ asset('dash/js/core/jquery.3.2.1.min.js')}} "></script> --}}
@@ -103,9 +108,28 @@
                 }, 'google_translate_element');
             }
         </script>
-        <script src="{{ asset('dash/js/customs.js') }}"></script>
-    @show
 
+        <script>
+            $(document).ready(function() {
+                $('#usersTable').DataTable({
+                    pageLength: 10,
+                    ordering: true,
+                    searching: true,
+                    responsive: true
+                });
+            });
+        </script>
+
+        <script>
+            document.getElementById('selectAll')?.addEventListener('click', function() {
+                let checks = document.querySelectorAll('.row-check');
+                checks.forEach(ch => ch.checked = this.checked);
+            });
+        </script>
+        <script src="{{ asset('dash/js/customs.js') }}"></script>
+
+    @show
+    @livewireScripts
 </body>
 
 </html>

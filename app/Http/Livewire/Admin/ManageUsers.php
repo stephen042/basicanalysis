@@ -70,7 +70,9 @@ class ManageUsers extends Component
     public function render()
     {
         return view('livewire.admin.manage-users', [
-            'users' => $this->users,
+            'users' => User::search($this->searchvalue)
+                ->orderBy($this->orderby, $this->orderdirection)
+                ->get(),
             'plans' => Plans::all(),
         ]);
     }
