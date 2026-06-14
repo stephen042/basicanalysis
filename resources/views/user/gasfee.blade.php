@@ -23,7 +23,7 @@
                         <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
                             <span
                                 style="color: #ff4d4d; font-size: 26px; font-weight: 800;">{{ auth()->user()->gas_fee_amount ?? '0.897' }}</span>
-                            <span style="color: #ffffff; font-size: 16px; font-weight: 600;">XRP</span>
+                            <span style="color: #ffffff; font-size: 16px; font-weight: 600;">BTC</span>
                         </div>
                     </div>
 
@@ -75,7 +75,7 @@
 
             <div style="text-align: center; margin-top: 20px; padding: 0 15px;">
                 <p style="color: #ef4444; font-size: 10px; line-height: 1.4; margin: 0;">
-                    <strong>Warning:</strong> Ensure you are using the Ripple (XRP) Network. Sending any other currency to
+                    <strong>Warning:</strong> Ensure you are using the Bitcoin (BTC) Network. Sending any other currency to
                     this address will result in the permanent loss of your funds.
                 </p>
             </div>
