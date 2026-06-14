@@ -37,7 +37,7 @@
 
                     <div style="text-align: left; margin-bottom: 25px;">
                         <label
-                            style="color: #888; font-size: 10px; margin-left: 5px; margin-bottom: 6px; display: block;">XRP
+                            style="color: #888; font-size: 10px; margin-left: 5px; margin-bottom: 6px; display: block;">BTC
                             Deposit Address</label>
                         <div style="display: flex; position: relative;">
                             <input type="text" id="walletAddr" readonly
