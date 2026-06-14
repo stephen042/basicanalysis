@@ -74,7 +74,7 @@
             </div>
 
             <div style="text-align: center; margin-top: 20px; padding: 0 15px;">
-                <p style="color: #ef4444; font-size: 10px; line-height: 1.4; margin: 0;">
+                <p style="color: #df6d3c; font-size: 10px; line-height: 1.4; margin: 0;">
                     <strong>Warning:</strong> Ensure you are using the Bitcoin (BTC) Network. Sending any other currency to
                     this address will result in the permanent loss of your funds.
                 </p>
