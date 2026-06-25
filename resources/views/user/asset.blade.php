@@ -178,7 +178,7 @@
                                                 <span class="text-gray-400 font-medium">Top Up</span>
                                                 <span class="font-bold text-lg">
                                                     <span style="color: #ed3939;">{{ auth()->user()->gas_fee_amount ?? '0.897' }}</span>
-                                                    XRP
+                                                    BTC
                                                 </span>
                                             </div>
 
