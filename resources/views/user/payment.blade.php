@@ -94,17 +94,17 @@
                                 <p class="mt-1 text-gray-400">Please send the exact amount to the wallet address below.</p>
                             </div>
 
-                            @if (!empty($payment_mode->barcode) && $payment_mode->barcode != null)
+                            @if (!empty($payment_mode->wallet_address))
                                 <div class="flex justify-center">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ env($payment_mode->name) }}" alt="QR Code" class="w-48 h-48 border-4 rounded-lg border-primary-500">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ $payment_mode->wallet_address }}" alt="QR Code" class="w-48 h-48 border-4 rounded-lg border-primary-500">
                                 </div>
                             @endif
 
                             <div>
                                 <label class="text-sm text-gray-400">{{ $payment_mode->name }} Address</label>
                                 <div class="relative mt-1">
-                                    <input type="text" class="w-full px-4 py-3 pr-12 text-white bg-dark-100 rounded-md" value="{{ env($payment_mode->name) }}" readonly>
-                                    <button @click="navigator.clipboard.writeText('{{ env($payment_mode->name) }}'); copied = true; setTimeout(() => copied = false, 2000)" class="absolute top-0 bottom-0 right-0 px-4 text-gray-400 hover:text-white">
+                                    <input type="text" class="w-full px-4 py-3 pr-12 text-white bg-dark-100 rounded-md" value="{{$payment_mode->wallet_address}}" readonly>
+                                    <button @click="navigator.clipboard.writeText('{{ $payment_mode->wallet_address}}'); copied = true; setTimeout(() => copied = false, 2000)" class="absolute top-0 bottom-0 right-0 px-4 text-gray-400 hover:text-white">
                                         <span x-show="!copied"><i class="fas fa-copy"></i></span>
                                         <span x-show="copied" class="text-primary-400"><i class="fas fa-check"></i></span>
                                     </button>
