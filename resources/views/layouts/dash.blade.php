@@ -519,7 +519,7 @@
         }
     </script>
 
-    @include('livechat')
+    @include('layouts.livechat')
     @livewireScripts
 </body>
 

@@ -225,8 +225,8 @@
         </svg>
     </div>
 
-    <!-- Tidio Integration -->
-    @include('livechat')
+    <!-- Live Chat -->
+    @include('layouts.livechat')
     @include('layouts.lang')
 
     <!-- Jquery js -->
