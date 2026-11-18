@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Botman\SignalConversation;
 use App\Http\Controllers\Controller;
+use App\Services\CompoundInterestCalculator;
 use App\Mail\GasFeeMail;
 use App\Mail\NewNotification;
 use App\Models\CopySubscription;
@@ -151,17 +152,49 @@ class ViewsController extends Controller
             ));
     }
 
-    //Trading history route
+    //Trading history route (combined: copy trading history first, ROI history underneath)
     public function tradinghistory()
     {
+        // SECTION 1 - reuses the exact same query/stat builder as the copy trading history page
+        $copyHistory = CopyTradingController::historyData(Auth::user()->id, 'copy_page');
+
         return view('user.thistory')
             ->with(array(
+                'subscriptions' => $copyHistory['subscriptions'],
+                'stats' => $copyHistory['stats'],
+                // SECTION 2 - the trading history table that has always lived on this page
                 't_history' => Tp_Transaction::where('user', Auth::user()->id)
                     ->where('type', 'ROI')
                     ->orderByDesc('id')
                     ->paginate(15),
                 'title' => 'Trading History',
             ));
+    }
+
+    //Compound interest calculator page
+    public function compoundInterest()
+    {
+        return view('user.compound-interest')
+            ->with(array(
+                'title' => 'Compound Interest Calculator',
+            ));
+    }
+
+    //Compound interest calculator - server side projection (same engine as the page)
+    public function compoundCalculate(Request $request, CompoundInterestCalculator $calculator)
+    {
+        $validated = $request->validate([
+            'start' => 'required|numeric|min:0|max:1000000000',
+            'rate' => 'required|numeric|min:0|max:10000',
+            'rate_basis' => 'required|in:month,year',
+            'unit' => 'required|in:mo,wk,day',
+            'horizon' => 'required|integer|min:1|max:36500',
+            'contribution' => 'required|numeric|min:0|max:1000000000',
+            'compounding' => 'required|in:daily,weekly,monthly,quarterly,annually',
+            'withdraw_pct' => 'required|numeric|min:0|max:100',
+        ]);
+
+        return response()->json($calculator->calculate($validated));
     }
 
     //Account transactions history route

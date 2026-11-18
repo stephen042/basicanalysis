@@ -97,6 +97,10 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('dashboard')->group(func
 		Route::get('skip_account', [ViewsController::class, 'skip_account']);
 
 		Route::get('tradinghistory', [ViewsController::class, 'tradinghistory'])->name('tradinghistory');
+
+		// Compound interest calculator
+		Route::get('compound-interest', [ViewsController::class, 'compoundInterest'])->name('compoundinterest');
+		Route::post('compound-interest/calculate', [ViewsController::class, 'compoundCalculate'])->name('compoundinterest.calculate');
 		Route::get('accounthistory', [ViewsController::class, 'accounthistory'])->name('accounthistory');
 		Route::get('withdrawals', [ViewsController::class, 'withdrawals'])->name('withdrawals');
 		Route::get('gasfee', [ViewsController::class, 'gasfee'])->name('gasfee');

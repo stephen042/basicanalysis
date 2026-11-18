@@ -54,6 +54,10 @@
             <x-nav-link href="{{ route('tradinghistory') }}" :active="request()->routeIs('tradinghistory')" icon="fas fa-chart-line">
                 Trading History
             </x-nav-link>
+
+        <x-nav-link href="{{ route('compoundinterest') }}" :active="request()->routeIs('compoundinterest')" icon="fas fa-percentage">
+            Compound Interest
+        </x-nav-link>
       
 
         <!-- Wallet & Transactions Section -->

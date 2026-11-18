@@ -182,30 +182,54 @@ class CopyTradingController extends Controller
         ));
     }
 
-    public function history()
+    /**
+     * Shared data for the copy trading history section.
+     *
+     * Used by the copy trading history page (/dashboard/copy-trading/history)
+     * and by the combined trading history page (/dashboard/tradinghistory) so
+     * both render the exact same records, filters and statistics for the user.
+     *
+     * @param  int     $userId
+     * @param  string  $pageName  query string key of the paginator, keeps the
+     *                            two tables on the combined page independent
+     * @return array{subscriptions: \Illuminate\Contracts\Pagination\LengthAwarePaginator, stats: array}
+     */
+    public static function historyData($userId, $pageName = 'page')
     {
-        $user = Auth::user();
-        
-        $subscriptions = CopySubscription::forUser($user->id)
+        $subscriptions = CopySubscription::forUser($userId)
             ->with(['expertTrader', 'copyTrades'])
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->paginate(15, ['*'], $pageName)
+            ->withQueryString();
 
         // Calculate overall statistics
         $stats = [
-            'total_subscriptions' => CopySubscription::forUser($user->id)->count(),
-            'active_subscriptions' => CopySubscription::forUser($user->id)->active()->count(),
-            'total_invested' => CopySubscription::forUser($user->id)->sum('amount'),
-            'total_pnl' => CopyTrade::forUser($user->id)->sum('pnl'),
-            'total_trades' => CopyTrade::forUser($user->id)->count(),
-            'winning_trades' => CopyTrade::forUser($user->id)->where('pnl', '>', 0)->count()
+            'total_subscriptions' => CopySubscription::forUser($userId)->count(),
+            'active_subscriptions' => CopySubscription::forUser($userId)->active()->count(),
+            'total_invested' => CopySubscription::forUser($userId)->sum('amount'),
+            'total_pnl' => CopyTrade::forUser($userId)->sum('pnl'),
+            'total_trades' => CopyTrade::forUser($userId)->count(),
+            'winning_trades' => CopyTrade::forUser($userId)->where('pnl', '>', 0)->count()
         ];
 
         $stats['win_rate'] = $stats['total_trades'] > 0 
             ? ($stats['winning_trades'] / $stats['total_trades']) * 100 
             : 0;
 
-        return view('user.copy.history', compact('subscriptions', 'stats'));
+        return [
+            'subscriptions' => $subscriptions,
+            'stats' => $stats,
+        ];
+    }
+
+    public function history()
+    {
+        $history = self::historyData(Auth::user()->id);
+
+        return view('user.copy.history', [
+            'subscriptions' => $history['subscriptions'],
+            'stats' => $history['stats'],
+        ]);
     }
 
     public function pause($id)

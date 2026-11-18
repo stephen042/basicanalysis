@@ -9,8 +9,10 @@ use App\Models\ExpertTrade;
 use App\Models\CopySubscription;
 use App\Models\CopyTrade;
 use App\Models\ExpertPerformanceHistory;
+use App\Models\Tp_Transaction;
 use App\Models\TradingAsset;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class CopyTradingController extends Controller
@@ -216,72 +218,173 @@ class CopyTradingController extends Controller
         return view('admin.copy-trading.analytics', compact('title', 'metrics', 'monthlyData', 'topExperts'));
     }
 
+    /**
+     * Manually stimulate a trade for an expert and distribute the entered
+     * profit/loss to every active subscriber of that expert.
+     *
+     * IMPORTANT: the amount typed by the administrator is the FINAL amount.
+     * No ROI percentage, profit share, copy-percentage scaling or any other
+     * background calculation is applied on top of it - each affected user
+     * receives exactly the entered amount.
+     */
     public function simulateTrade(Request $request)
     {
         $request->validate([
             'expert_trader_id' => 'required|exists:expert_traders,id',
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:0.01|max:1000000000',
             'type' => 'required|in:profit,loss',
-            'asset_id' => 'nullable|exists:trading_assets,id'
+            'asset_id' => 'nullable|exists:trading_assets,id',
+            'simulation_token' => 'nullable|string|max:64',
         ]);
 
-        $expert = ExpertTrader::findOrFail($request->expert_trader_id);
-        $tradingAsset = $request->asset_id ? TradingAsset::find($request->asset_id) : null;
+        $amount = round((float) $request->input('amount'), 2);
+        $type = $request->input('type');
+        $signedAmount = $type === 'profit' ? $amount : -$amount;
 
-        // Create manual expert trade
-        $expertTrade = ExpertTrade::create([
-            'expert_trader_id' => $expert->id,
-            'trading_asset_id' => $tradingAsset?->id,
-            'amount' => $request->amount,
-            'type' => $request->type,
-            'asset_price' => $tradingAsset?->current_price ?? 100,
-            'quantity' => $tradingAsset ? $request->amount / $tradingAsset->current_price : 0,
-            'entry_price' => $tradingAsset?->current_price ?? 100,
-            'exit_price' => $tradingAsset?->current_price ?? 100,
-            'pnl' => $request->type === 'profit' ? $request->amount * 0.05 : -($request->amount * 0.03),
-            'trade_direction' => 'long',
-            'status' => 'closed',
-            'opened_at' => Carbon::now()->subMinutes(30),
-            'closed_at' => Carbon::now()
-        ]);
+        // Idempotency: claim this submission before touching the database so a
+        // double click / re-post can never credit the same entry twice.
+        $token = $request->input('simulation_token');
+        $claimed = true;
+        if ($token) {
+            $claimed = Cache::add('copy-trading:simulated:' . sha1($token), 1, now()->addMinutes(30));
 
-        // Process copy trades
-        $this->processCopyTradesForManualTrade($expert, $expertTrade);
+            if (!$claimed) {
+                return back()->with('message', 'This entry was already processed. No additional credit was made.');
+            }
+        }
 
-        return back()->with('success', 'Manual trade simulated successfully!');
+        try {
+            $credited = 0;
+
+            DB::transaction(function () use ($request, $amount, $type, $signedAmount, &$credited) {
+                $expert = ExpertTrader::findOrFail($request->input('expert_trader_id'));
+                $tradingAsset = $request->filled('asset_id') ? TradingAsset::find($request->input('asset_id')) : null;
+
+                // The manual trade record mirrors the entered amount exactly:
+                // pnl is the amount itself (profit) or its negation (loss).
+                $expertTrade = ExpertTrade::create([
+                    'expert_trader_id' => $expert->id,
+                    'trading_asset_id' => $tradingAsset?->id,
+                    'amount' => $amount,
+                    'type' => $type,
+                    'asset_price' => $tradingAsset?->current_price ?? 100,
+                    'quantity' => $tradingAsset ? $amount / $tradingAsset->current_price : 0,
+                    'entry_price' => $tradingAsset?->current_price ?? 100,
+                    'exit_price' => $tradingAsset?->current_price ?? 100,
+                    'pnl' => $signedAmount,
+                    'trade_direction' => 'long',
+                    'status' => 'closed',
+                    'opened_at' => Carbon::now()->subMinutes(30),
+                    'closed_at' => Carbon::now(),
+                ]);
+
+                $credited = $this->processCopyTradesForManualTrade($expert, $expertTrade, $signedAmount);
+
+                if ($credited === 0 && $token) {
+                    // Nothing was credited - release the idempotency claim so
+                    // the administrator can retry the same entry.
+                    Cache::forget('copy-trading:simulated:' . sha1($token));
+                }
+            });
+        } catch (\Throwable $e) {
+            if ($token) {
+                Cache::forget('copy-trading:simulated:' . sha1($token));
+            }
+
+            throw $e;
+        }
+
+        $displayAmount = number_format($amount, 2, '.', ',');
+
+        if ($credited === 0) {
+            return back()->with(
+                'message',
+                "No active subscribers found for this expert, so no credit was applied. The {$displayAmount} {$type} entry was recorded but not distributed."
+            );
+        }
+
+        $word = $type === 'profit' ? 'profit' : 'loss';
+
+        return back()->with(
+            'success',
+            "Manual trade simulated! Exactly {$displayAmount} was applied as {$word} to every active subscriber's account."
+        );
     }
 
-    private function processCopyTradesForManualTrade($expert, $expertTrade)
+    /**
+     * Credit the EXACT entered amount to every active subscriber.
+     *
+     * Runs inside the caller's transaction, locks the subscription rows and
+     * skips any subscription that already has a record for this trade, so the
+     * same trade can never be distributed twice.
+     *
+     * @return int number of subscriptions processed
+     */
+    private function processCopyTradesForManualTrade(ExpertTrader $expert, ExpertTrade $expertTrade, float $signedAmount): int
     {
-        $activeSubscriptions = $expert->copySubscriptions()->active()->with('user')->get();
+        $activeSubscriptions = CopySubscription::where('expert_trader_id', $expert->id)
+            ->active()
+            ->with('user')
+            ->lockForUpdate()
+            ->get();
+
+        $processed = 0;
 
         foreach ($activeSubscriptions as $subscription) {
-            $copyAmount = ($expertTrade->amount * $subscription->copy_percentage) / 100;
-            $copyPnl = ($expertTrade->pnl / $expertTrade->amount) * $copyAmount;
+            // Never credit the same trade to the same subscription twice.
+            $alreadyProcessed = CopyTrade::where('expert_trade_id', $expertTrade->id)
+                ->where('copy_subscription_id', $subscription->id)
+                ->exists();
+
+            if ($alreadyProcessed) {
+                continue;
+            }
+
+            $user = $subscription->user;
+
+            if (!$user) {
+                continue;
+            }
+
+            // Position sizing metadata only - it never changes the credited
+            // amount, which is always exactly what the administrator entered.
+            $copyAmount = $subscription->calculateCopyAmount($expertTrade->amount);
+            $copyRatio = $expertTrade->amount > 0 ? $copyAmount / $expertTrade->amount : 1;
 
             CopyTrade::create([
                 'copy_subscription_id' => $subscription->id,
                 'expert_trade_id' => $expertTrade->id,
                 'user_id' => $subscription->user_id,
                 'trading_asset_id' => $expertTrade->trading_asset_id,
-                'amount' => $copyAmount,
+                'amount' => round($copyAmount, 2),
                 'type' => $expertTrade->type,
                 'asset_price' => $expertTrade->asset_price,
-                'quantity' => $expertTrade->quantity * ($copyAmount / $expertTrade->amount),
+                'quantity' => round($expertTrade->quantity * $copyRatio, 8),
                 'entry_price' => $expertTrade->entry_price,
                 'exit_price' => $expertTrade->exit_price,
-                'pnl' => $copyPnl,
+                'pnl' => $signedAmount,
                 'trade_direction' => $expertTrade->trade_direction,
                 'status' => $expertTrade->status,
-                'copy_ratio' => $copyAmount / $expertTrade->amount,
+                'copy_ratio' => round($copyRatio, 4),
                 'opened_at' => $expertTrade->opened_at,
                 'closed_at' => $expertTrade->closed_at
             ]);
 
-            // Update user balance
-            $user = $subscription->user;
-            $user->account_bal += $copyPnl;
+            // Credit the exact amount to the user's available balance/wallet.
+            $user->account_bal = round($user->account_bal + $signedAmount, 2);
             $user->save();
+
+            // Transaction record + trading history entry for the same amount.
+            Tp_Transaction::create([
+                'user' => $user->id,
+                'plan' => $signedAmount >= 0 ? 'Copy Trading Profit' : 'Copy Trading Loss',
+                'amount' => $signedAmount,
+                'type' => 'ROI',
+            ]);
+
+            $processed++;
         }
+
+        return $processed;
     }
 }

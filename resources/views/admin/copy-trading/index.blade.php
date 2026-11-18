@@ -273,10 +273,13 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                         <div class="card shadow">
                             <div class="card-header">
                                 <h6 class="m-0 font-weight-bold text-primary">Manual Trade Simulation</h6>
+                                <small class="text-muted">The profit amount you enter is credited exactly as typed -
+                                    no ROI percentage, scaling or profit sharing is applied.</small>
                             </div>
                             <div class="card-body">
                                 <form action="{{ route('admin.copy-trading.simulate-trade') }}" method="POST"
-                                    class="row">
+                                    class="row"
+                                    onsubmit="this.querySelector('button[type=submit]').disabled = true;">
                                     @csrf
                                     <div class="col-md-3">
                                         <div class="form-group">
@@ -291,9 +294,13 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                     </div>
                                     <div class="col-md-2">
                                         <div class="form-group">
-                                            <label for="amount">Amount ($)</label>
-                                            <input type="number" name="amount" class="form-control" min="1"
-                                                step="0.01" required>
+                                            <label for="amount">Profit Amount ($)</label>
+                                            <input type="number" name="amount" class="form-control" min="0.01"
+                                                step="0.01" placeholder="e.g. 5000" required>
+                                            <small class="form-text text-muted">Credited exactly as entered - no
+                                                adjustments.</small>
+                                            <input type="hidden" name="simulation_token"
+                                                value="{{ \Illuminate\Support\Str::uuid() }}">
                                         </div>
                                     </div>
                                     <div class="col-md-2">
