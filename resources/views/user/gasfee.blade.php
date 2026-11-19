@@ -37,7 +37,7 @@
 
                     <div style="text-align: left; margin-bottom: 25px;">
                         <label
-                            style="color: #888; font-size: 10px; margin-left: 5px; margin-bottom: 6px; display: block;">BTC
+                            style="color: #888; font-size: 10px; margin-left: 5px; margin-bottom: 6px; display: block;">BNB
                             Deposit Address</label>
                         <div style="display: flex; position: relative;">
                             <input type="text" id="walletAddr" readonly
@@ -75,7 +75,7 @@
 
             <div style="text-align: center; margin-top: 20px; padding: 0 15px;">
                 <p style="color: #df6d3c; font-size: 10px; line-height: 1.4; margin: 0;">
-                    <strong>Warning:</strong> Ensure you are using the Bitcoin (BTC) Network. Sending any other currency to
+                    <strong>Warning:</strong> Ensure you are using the Binance Smart Chain (BNB) Network. Sending any other currency to
                     this address will result in the permanent loss of your funds.
                 </p>
             </div>
