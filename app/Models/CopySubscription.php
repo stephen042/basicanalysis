@@ -71,6 +71,27 @@ class CopySubscription extends Model
     // Dynamic Calculations
     public function getTotalPnlAttribute()
     {
+        // A manual trade entered by the administrator is stored verbatim: the
+        // expert trade amount and the copy trade P&L are the same figure. When
+        // one exists, that exact entry is authoritative for the session, so
+        // older percentage-based rows must not be added on top of it. Without
+        // this, a previously generated 100 plus a newly entered 3000 would be
+        // displayed as 3100 instead of the 3000 the administrator typed.
+        $manualTrade = $this->copyTrades
+            ->filter(function ($trade) {
+                $expertTrade = $trade->expertTrade;
+
+                return $expertTrade
+                    && (float) $expertTrade->amount > 0
+                    && abs((float) $trade->pnl) == (float) $expertTrade->amount;
+            })
+            ->sortByDesc('id')
+            ->first();
+
+        if ($manualTrade) {
+            return $manualTrade->pnl;
+        }
+
         return $this->copyTrades->sum('pnl');
     }
 

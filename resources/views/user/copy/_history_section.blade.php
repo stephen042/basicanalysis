@@ -169,7 +169,7 @@
                                         <div class="mt-3 pt-3 border-t border-dark-100">
                                             <div class="text-sm text-gray-400 mb-2">Recent Copy Trades:</div>
                                             <div class="flex flex-wrap gap-2">
-                                                @foreach($subscription->copyTrades->take(8) as $trade)
+                                                @foreach($subscription->copyTrades->sortByDesc('id')->take(8) as $trade)
                                                     <span class="inline-flex items-center px-2 py-1 rounded text-xs {{ $trade->isProfit() ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400' }}">
                                                         <i class="fas {{ $trade->isProfit() ? 'fa-arrow-up' : 'fa-arrow-down' }} mr-1"></i>
                                                         {{ $trade->isProfit() ? '+' : '' }}${{ number_format($trade->pnl, 2) }}

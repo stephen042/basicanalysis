@@ -165,7 +165,7 @@ class CopyTradingController extends Controller
     {
         $title = "Copy Subscriptions Management";
         
-        $subscriptions = CopySubscription::with(['user', 'expertTrader', 'copyTrades'])
+        $subscriptions = CopySubscription::with(['user', 'expertTrader', 'copyTrades.expertTrade'])
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 

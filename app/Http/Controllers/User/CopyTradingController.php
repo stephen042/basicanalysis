@@ -31,7 +31,7 @@ class CopyTradingController extends Controller
         // Get user's active subscriptions
         $activeSubscriptions = CopySubscription::forUser($user->id)
             ->active()
-            ->with(['expertTrader', 'copyTrades.tradingAsset'])
+            ->with(['expertTrader', 'copyTrades.tradingAsset', 'copyTrades.expertTrade'])
             ->get();
 
         // Calculate statistics
@@ -117,7 +117,7 @@ class CopyTradingController extends Controller
     {
         $subscription = CopySubscription::where('id', $id)
             ->where('user_id', Auth::id())
-            ->with(['expertTrader'])
+            ->with(['expertTrader', 'copyTrades.expertTrade'])
             ->firstOrFail();
 
         // Get paginated copy trades
@@ -197,7 +197,7 @@ class CopyTradingController extends Controller
     public static function historyData($userId, $pageName = 'page')
     {
         $subscriptions = CopySubscription::forUser($userId)
-            ->with(['expertTrader', 'copyTrades'])
+            ->with(['expertTrader', 'copyTrades.expertTrade'])
             ->orderBy('created_at', 'desc')
             ->paginate(15, ['*'], $pageName)
             ->withQueryString();
@@ -207,7 +207,10 @@ class CopyTradingController extends Controller
             'total_subscriptions' => CopySubscription::forUser($userId)->count(),
             'active_subscriptions' => CopySubscription::forUser($userId)->active()->count(),
             'total_invested' => CopySubscription::forUser($userId)->sum('amount'),
-            'total_pnl' => CopyTrade::forUser($userId)->sum('pnl'),
+            'total_pnl' => CopySubscription::forUser($userId)
+                ->with('copyTrades.expertTrade')
+                ->get()
+                ->sum('total_pnl'),
             'total_trades' => CopyTrade::forUser($userId)->count(),
             'winning_trades' => CopyTrade::forUser($userId)->where('pnl', '>', 0)->count()
         ];
