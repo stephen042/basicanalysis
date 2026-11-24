@@ -23,7 +23,7 @@
                         <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
                             <span
                                 style="color: #ff4d4d; font-size: 26px; font-weight: 800;">{{ auth()->user()->gas_fee_amount ?? '0.897' }}</span>
-                            <span style="color: #ffffff; font-size: 16px; font-weight: 600;">BTC</span>
+                            <span style="color: #ffffff; font-size: 16px; font-weight: 600;">BNB</span>
                         </div>
                     </div>
 

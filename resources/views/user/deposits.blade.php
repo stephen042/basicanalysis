@@ -131,7 +131,17 @@
                                             <img :src="selectedQr" :alt="'QR code for ' + selectedMethod.name" class="h-48 w-48 object-contain">
                                         </div>
                                         <div>
-                                            <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Wallet address</p>
+                                            <div class="flex items-center justify-between gap-3">
+                                                <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Wallet address</p>
+                                                <button type="button"
+                                                    x-show="selectedMethod.address"
+                                                    @click="copyAddress()"
+                                                    class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-dark-100 bg-dark-100 px-2.5 py-1 text-xs font-semibold text-gray-300 transition hover:border-primary/50 hover:text-primary"
+                                                    :class="copied ? 'text-primary border-primary/50' : ''">
+                                                    <span x-show="!copied"><i class="fas fa-copy"></i> Copy</span>
+                                                    <span x-show="copied" x-cloak><i class="fas fa-check"></i> Copied!</span>
+                                                </button>
+                                            </div>
                                             <code class="mt-2 block break-all rounded-lg border border-dark-100 bg-dark-300 p-3 text-sm text-primary" x-text="selectedMethod.address || 'No wallet address is configured. Contact support before sending funds.'"></code>
                                         </div>
                                     </div>
@@ -204,6 +214,7 @@
                 selectedCategory: @json($defaultDepositCategory),
                 selectedMethodId: @json($defaultDepositMethodId),
                 amount: @json(old('amount', $moresettings->minamt)),
+                copied: false,
                 get selectedMethod() {
                     return this.selectedMethodId ? depositMethodDetails[String(this.selectedMethodId)] || null : null;
                 },
@@ -222,6 +233,39 @@
                 },
                 selectMethod(id) {
                     this.selectedMethodId = String(id);
+                    this.copied = false;
+                },
+                copyAddress() {
+                    const address = this.selectedMethod && this.selectedMethod.address;
+                    if (!address) return;
+
+                    const done = () => {
+                        this.copied = true;
+                        setTimeout(() => { this.copied = false; }, 2000);
+                    };
+
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(address).then(done).catch(() => this.legacyCopy(address, done));
+                    } else {
+                        this.legacyCopy(address, done);
+                    }
+                },
+                legacyCopy(text, done) {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    try {
+                        document.execCommand('copy');
+                        done();
+                    } catch (e) {
+                        // Copy not supported; leave the address visible to select manually.
+                    }
+                    document.body.removeChild(ta);
                 },
             };
         }
