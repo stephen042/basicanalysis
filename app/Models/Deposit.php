@@ -14,6 +14,11 @@ class Deposit extends Model
     }
 
     public function dplan(){
-    	return $this->belongsTo('App\Models\Plans', 'plan');
+        return $this->belongsTo('App\Models\Plans', 'plan');
+    }
+
+    public function paymentMethod()
+    {
+        return $this->belongsTo(Wdmethod::class, 'payment_method_id');
     }
 }

@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class ViewsController extends Controller
 {
@@ -222,7 +223,44 @@ class ViewsController extends Controller
         $paymethod = Wdmethod::where(function ($query) {
             $query->where('type', '=', 'deposit')
                 ->orWhere('type', '=', 'both');
-        })->where('status', 'enabled')->orderByDesc('id')->get();
+        })->whereIn('methodtype', ['currency', 'crypto'])
+            ->where('status', 'enabled')
+            ->orderBy('name')
+            ->get();
+
+        $fiatMethods = $paymethod
+            ->filter(function ($method) {
+                return strtolower(trim((string) $method->methodtype)) === 'currency';
+            })
+            ->values();
+        $cryptoMethods = $paymethod
+            ->filter(function ($method) {
+                return strtolower(trim((string) $method->methodtype)) === 'crypto';
+            })
+            ->values();
+
+        $depositMethodDetails = $paymethod->mapWithKeys(function ($method) {
+            $isCrypto = strtolower(trim((string) $method->methodtype)) !== 'currency';
+            $barcode = null;
+            if ($method->barcode && Storage::disk('public')->exists($method->barcode)) {
+                $barcode = Storage::disk('public')->url($method->barcode);
+            }
+
+            return [(string) $method->id => [
+                'id' => (int) $method->id,
+                'name' => $method->name,
+                'methodtype' => strtolower(trim((string) $method->methodtype)),
+                'image' => $method->img_url,
+                'network' => $method->network,
+                'address' => $isCrypto ? ($method->wallet_address ?: env($method->name)) : null,
+                'barcode' => $barcode,
+                'bank' => $method->bankname,
+                'account_name' => $method->account_name,
+                'account_number' => $method->account_number,
+                'swift' => $method->swift_code,
+                'instructions' => $method->duration,
+            ]];
+            })->all();
 
         //sum total deposited
         $total_deposited = DB::table('deposits')->where('user', auth()->user()->id)->where('status', 'Processed')->sum('amount');
@@ -231,6 +269,9 @@ class ViewsController extends Controller
             ->with(array(
                 'title' => 'Fund your account',
                 'dmethods' => $paymethod,
+                'fiatMethods' => $fiatMethods,
+                'cryptoMethods' => $cryptoMethods,
+                'depositMethodDetails' => $depositMethodDetails,
                 'deposits' => Deposit::where(['user' => Auth::user()->id])
                     ->orderBy('id', 'desc')
                     ->get(),

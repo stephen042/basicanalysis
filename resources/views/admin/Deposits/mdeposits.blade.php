@@ -35,7 +35,13 @@
                                             <td>{{ $deposit->duser->name }}</td>
                                             <td>{{ $deposit->duser->email }}</td>
                                             <td>{{ $deposit->duser->currency }}{{ number_format($deposit->amount, 2) }}</td>
-                                            <td>{{ $deposit->payment_mode }}</td>
+                                            <td>
+                                                {{ $deposit->paymentMethod?->name ?? $deposit->payment_mode }}
+                                                @if($deposit->payment_network)<small class="d-block text-muted">Network: {{ $deposit->payment_network }}</small>@endif
+                                                @if($deposit->paymentMethod && $deposit->payment_mode && $deposit->payment_mode !== $deposit->paymentMethod->name)
+                                                    <small class="d-block text-muted">Processor: {{ $deposit->payment_mode }}</small>
+                                                @endif
+                                            </td>
                                             <td>
                                                 @if ($deposit->status == 'Processed')
                                                     <span class="badge badge-success">{{ $deposit->status }}</span>
@@ -65,7 +71,10 @@
                                             <td><span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Deleted User</span></td>
                                             <td><span class="text-muted">N/A</span></td>
                                             <td>{{ $settings->currency }}{{ number_format($deposit->amount, 2) }}</td>
-                                            <td>{{ $deposit->payment_mode }}</td>
+                                            <td>
+                                                {{ $deposit->paymentMethod?->name ?? $deposit->payment_mode }}
+                                                @if($deposit->payment_network)<small class="d-block text-muted">Network: {{ $deposit->payment_network }}</small>@endif
+                                            </td>
                                             <td>
                                                 @if ($deposit->status == 'Processed')
                                                     <span class="badge badge-success">{{ $deposit->status }}</span>

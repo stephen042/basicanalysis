@@ -19,13 +19,17 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
             <tbody>
             @forelse($investments as $investment)
                 <tr>
+                    @php $investmentCurrency = in_array(strtoupper(trim((string) $investment->payment_method)), ['USDT', 'SUBSCRIPTION BALANCE'], true) ? 'USDT ' : $currency; @endphp
                     <td>{{ $investment->user->name }}<small class="d-block text-muted">{{ $investment->user->email }}</small></td>
-                    <td>{{ $currency }}{{ number_format($investment->amount,2) }}</td>
+                    <td>{{ $investmentCurrency }}{{ number_format($investment->amount,2) }}</td>
                     <td>{{ $investment->created_at->format('M j, Y H:i') }}</td>
-                    <td>{{ ucfirst($investment->recurring_frequency) }}<small class="d-block text-muted">{{ $currency }}{{ number_format($investment->recurring_amount,2) }}</small></td>
-                    <td><span class="badge badge-{{ $investment->deposit_status === 'approved' ? 'success' : ($investment->deposit_status === 'rejected' ? 'danger' : ($investment->payment_proof ? 'info' : 'warning')) }}">
-                        {{ $investment->deposit_status === 'approved' ? 'Approved' : ($investment->deposit_status === 'rejected' ? 'Rejected' : ($investment->payment_proof ? 'Receipt submitted' : 'Pending payment')) }}
-                    </span></td>
+                    <td>{{ ucfirst($investment->recurring_frequency) }}<small class="d-block text-muted">{{ $investmentCurrency }}{{ number_format($investment->recurring_amount,2) }}</small></td>
+                    <td>
+                        <span class="badge badge-{{ $investment->deposit_status === 'approved' ? 'success' : ($investment->deposit_status === 'rejected' ? 'danger' : ($investment->payment_proof ? 'info' : 'warning')) }}">
+                            {{ $investment->deposit_status === 'approved' ? 'Approved' : ($investment->deposit_status === 'rejected' ? 'Rejected' : ($investment->payment_proof ? 'Receipt submitted' : 'Pending payment')) }}
+                        </span>
+                        <small class="d-block text-muted">{{ $investment->payment_method ?: '—' }}</small>
+                    </td>
                     <td><span class="badge badge-{{ $investment->status === 'active' ? 'success' : ($investment->status === 'completed' ? 'secondary' : ($investment->status === 'rejected' ? 'danger' : 'warning')) }}">{{ ucfirst($investment->status) }}</span></td>
                     <td><a class="btn btn-sm btn-primary" href="{{ route('admin.compound-investments.show', $investment) }}">Review / Manage</a></td>
                 </tr>

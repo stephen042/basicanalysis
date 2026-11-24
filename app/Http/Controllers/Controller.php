@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Settings;
 use App\Models\Agent;
 use App\Models\Deposit;
+use App\Models\Wdmethod;
 use App\Models\Tp_Transaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
@@ -22,6 +23,22 @@ use Illuminate\Support\Facades\Mail;
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests, Coinpayment;
+
+    protected function setDepositPaymentMethodMetadata(Deposit $deposit, $paymentMethodId = null, $paymentNetwork = null): void
+    {
+        $paymentMethodId = $paymentMethodId ?: session('payment_method_id');
+        if (!$paymentMethodId) {
+            return;
+        }
+
+        $method = Wdmethod::find($paymentMethodId);
+        if (!$method) {
+            return;
+        }
+
+        $deposit->payment_method_id = $method->id;
+        $deposit->payment_network = $paymentNetwork !== null ? $paymentNetwork : $method->network;
+    }
 
     //verify PayPal deposits
     public function paypalverify($amount)
@@ -37,6 +54,7 @@ class Controller extends BaseController
         $dp->proof = "Paypal";
         $dp->plan = "0";
         $dp->user = $user->id;
+        $this->setDepositPaymentMethodMetadata($dp, session('payment_method_id'));
         $dp->save();
 
 

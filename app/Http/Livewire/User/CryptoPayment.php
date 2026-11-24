@@ -14,7 +14,22 @@ class CryptoPayment extends Component
 
     public function render()
     {
-        $methodname =  Wdmethod::where('name', session('payment_mode'))->first();
+        $methodId = session('payment_method_id');
+        $methodname = $methodId
+            ? Wdmethod::whereKey($methodId)
+                ->whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
+                ->where('methodtype', 'crypto')
+                ->whereIn('type', ['deposit', 'both'])
+                ->where('status', 'enabled')
+                ->first()
+            : Wdmethod::where('name', session('payment_mode'))->first();
+
+        if (!$methodname) {
+            abort(404);
+        }
+        if ((string) session('payment_network') !== (string) $methodname->network) {
+            abort(409, 'The configured payment network changed. Restart the deposit and verify the current network.');
+        }
         return view('livewire.user.crypto-payment', [
             'title' => 'Deposit via crypto',
             'amount' => session('amount'),
@@ -24,6 +39,17 @@ class CryptoPayment extends Component
 
     public function payViaBinance()
     {
+        $methodId = session('payment_method_id');
+        $method = Wdmethod::whereKey($methodId)
+            ->whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
+            ->where('methodtype', 'crypto')
+            ->whereIn('type', ['deposit', 'both'])
+            ->where('status', 'enabled')
+            ->firstOrFail();
+        if ((string) session('payment_network') !== (string) $method->network) {
+            abort(409, 'The configured payment network changed. Restart the deposit and verify the current network.');
+        }
+
         sleep(2);
         $amount = session('amount');
         $successUrl = env('APP_URL') . "/dashboard/binance/success";
@@ -36,6 +62,8 @@ class CryptoPayment extends Component
         $brecord = new BncTransaction();
         $brecord->user_id = Auth::user()->id;
         $brecord->prepay_id = $data->prepayId;
+        $brecord->payment_method_id = session('payment_method_id');
+        $brecord->payment_network = session('payment_network');
         $brecord->type = 'Deposit';
         $brecord->status = 'Pending';
         $brecord->save();

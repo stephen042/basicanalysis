@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Mail\DepositStatus;
 use App\Models\BncTransaction;
 use App\Models\Deposit;
+use App\Models\Wdmethod;
 use App\Models\Settings;
 use App\Models\SettingsCont;
 use App\Models\User;
@@ -82,11 +83,18 @@ trait BinanceApi
                     $dp = new Deposit();
                     $dp->amount = $data->orderAmount;
                     $dp->txn_id = $data->prepayId;
-                    $dp->payment_mode = $data->currency;
+                    $configuredMethod = $order->payment_method_id
+                        ? Wdmethod::find($order->payment_method_id)
+                        : null;
+                    $dp->payment_mode = $configuredMethod ? $configuredMethod->name : $data->currency;
                     $dp->status = 'Processed';
                     $dp->proof = "Automatic Payment";
                     $dp->plan = 0;
                     $dp->user = $user->id;
+                    if ($configuredMethod) {
+                        $dp->payment_method_id = $configuredMethod->id;
+                        $dp->payment_network = $order->payment_network ?: $configuredMethod->network;
+                    }
                     $dp->save();
 
                     $brecord = BncTransaction::find($order->id);

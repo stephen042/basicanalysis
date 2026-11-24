@@ -61,6 +61,9 @@ $topupAllowed = $investment->status === 'active'
                 @else
                     <div class="alert alert-warning">No payment receipt has been uploaded yet. Do not approve until payment is verified.</div>
                 @endif
+                @if($investment->payment_proof && !$isUsdtPayment)
+                    <div class="alert alert-danger mt-3">This receipt is associated with a non-USDT method. Compound investment approval is USDT-only; reject this request and do not activate it.</div>
+                @endif
             </div>
             <div class="col-md-4">
                 <div class="rounded border p-3">
@@ -88,7 +91,7 @@ $topupAllowed = $investment->status === 'active'
                 <div class="col-md-6">
                     <form method="POST" action="{{ route('admin.compound-investments.decision', $investment) }}">@csrf
                         <input type="hidden" name="decision" value="approve">
-                        <button class="btn btn-success btn-block" {{ !$investment->payment_proof ? 'disabled' : '' }}>Approve Payment &amp; Activate</button>
+                        <button class="btn btn-success btn-block" {{ !$investment->payment_proof || !$isUsdtPayment ? 'disabled' : '' }}>Approve USDT Payment &amp; Activate</button>
                     </form>
                 </div>
                 <div class="col-md-6">

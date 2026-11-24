@@ -1,6 +1,10 @@
 @extends('emails.layout')
 
 @section('content')
+@php
+    $configuredMethod = $deposit->paymentMethod;
+    $displayPaymentMethod = $configuredMethod?->name ?? $deposit->payment_mode ?? 'N/A';
+@endphp
 @if ($foramin)
 <h1>New Deposit Notification</h1>
 
@@ -24,7 +28,10 @@
     </tr>
     <tr>
         <td>Payment Method</td>
-        <td>{{ $deposit->payment_mode ?? 'N/A' }}</td>
+        <td>{{ $displayPaymentMethod }}
+            @if($deposit->payment_network)<br><small>Network: {{ $deposit->payment_network }}</small>@endif
+            @if($configuredMethod && $deposit->payment_mode && $deposit->payment_mode !== $configuredMethod->name)<br><small>Processor: {{ $deposit->payment_mode }}</small>@endif
+        </td>
     </tr>
     <tr>
         <td>Status</td>
@@ -65,7 +72,10 @@
     </tr>
     <tr>
         <td>Payment Method</td>
-        <td>{{ $deposit->payment_mode ?? 'N/A' }}</td>
+        <td>{{ $displayPaymentMethod }}
+            @if($deposit->payment_network)<br><small>Network: {{ $deposit->payment_network }}</small>@endif
+            @if($configuredMethod && $deposit->payment_mode && $deposit->payment_mode !== $configuredMethod->name)<br><small>Processor: {{ $deposit->payment_mode }}</small>@endif
+        </td>
     </tr>
     <tr>
         <td>Transaction ID</td>
@@ -118,7 +128,10 @@
     </tr>
     <tr>
         <td>Payment Method</td>
-        <td>{{ $deposit->payment_mode ?? 'N/A' }}</td>
+        <td>{{ $displayPaymentMethod }}
+            @if($deposit->payment_network)<br><small>Network: {{ $deposit->payment_network }}</small>@endif
+            @if($configuredMethod && $deposit->payment_mode && $deposit->payment_mode !== $configuredMethod->name)<br><small>Processor: {{ $deposit->payment_mode }}</small>@endif
+        </td>
     </tr>
     <tr>
         <td>Transaction ID</td>

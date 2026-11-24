@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Settings;
+use App\Models\SettingsCont;
 use App\Models\Deposit;
 use App\Models\Wdmethod;
 use App\Models\Tp_Transaction;
@@ -13,6 +14,7 @@ use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use App\Mail\DepositStatus;
 
 class DepositController extends Controller
@@ -25,7 +27,11 @@ class DepositController extends Controller
     }
     public function getmethod($id)
     {
-        $methodname =  Wdmethod::where('id', $id)->first();
+        $methodname = Wdmethod::whereKey($id)
+            ->whereIn('type', ['deposit', 'both'])
+            ->whereIn('methodtype', ['currency', 'crypto'])
+            ->where('status', 'enabled')
+            ->firstOrFail();
         return response()->json($methodname->name);
     }
 
@@ -33,12 +39,26 @@ class DepositController extends Controller
     public function newdeposit(Request $request)
     {
         $settings = Settings::where('id', '1')->first();
-        $methodname =  Wdmethod::where('name', $request->payment_method)->first();
+        $minimum = optional(SettingsCont::find(1))->minamt;
+        $minimum = is_numeric($minimum) ? (float) $minimum : 1;
+        $data = $request->validate([
+            'amount' => 'required|numeric|min:' . $minimum,
+            'payment_method_id' => 'required|integer|exists:wdmethods,id',
+        ]);
+        $methodname = Wdmethod::whereKey($data['payment_method_id'])
+            ->whereIn('type', ['deposit', 'both'])
+            ->whereIn('methodtype', ['currency', 'crypto'])
+            ->where('status', 'enabled')
+            ->firstOrFail();
+        if ($settings === null) {
+            abort(503, 'Deposit settings are currently unavailable.');
+        }
+        $client_secret = null;
 
         if ($methodname->name == "Credit Card" and $settings->credit_card_provider == "Stripe") {
             $secretkey = $settings->s_s_k;
             $zero = '00';
-            $amt = $request->amount . $zero;
+            $amt = $data['amount'] . $zero;
 
             \Stripe\Stripe::setApiKey($secretkey);
             $paymentIntent  = \Stripe\PaymentIntent::create([
@@ -65,8 +85,10 @@ class DepositController extends Controller
 
 
         //store payment info in session
-        $request->session()->put('amount', $request['amount']);
+        $request->session()->put('amount', $data['amount']);
         $request->session()->put('payment_mode', $methodname->name);
+        $request->session()->put('payment_method_id', $methodname->id);
+        $request->session()->put('payment_network', $methodname->network);
         $request->session()->put('intent', $client_secret);
 
         return redirect()->route('payment');
@@ -75,11 +97,37 @@ class DepositController extends Controller
     //payment route
     public function payment(Request $request)
     {
-        $methodname =  Wdmethod::firstWhere('name', $request->session()->get('payment_mode'));
+        $methodId = $request->session()->get('payment_method_id');
+        $methodname = $methodId
+            ? Wdmethod::whereKey($methodId)
+                ->whereIn('type', ['deposit', 'both'])
+                ->whereIn('methodtype', ['currency', 'crypto'])
+                ->where('status', 'enabled')
+                ->first()
+            : Wdmethod::firstWhere('name', $request->session()->get('payment_mode'));
+        if (!$methodname) {
+            return redirect()->route('deposits')
+                ->with('error', 'The selected deposit method is no longer enabled. Please choose another method.');
+        }
+        if ($methodId && (string) $request->session()->get('payment_network') !== (string) $methodname->network) {
+            $request->session()->forget(['payment_method_id', 'payment_network', 'payment_mode', 'amount', 'intent']);
+            return redirect()->route('deposits')
+                ->with('error', 'The configured payment network changed. Choose the method again and verify its current details.');
+        }
+        $paymentAddress = strtolower(trim((string) $methodname->methodtype)) === 'currency'
+            ? null
+            : ($methodname->wallet_address ?: env($methodname->name));
+        $paymentBarcode = $methodname->barcode
+            && Storage::disk('public')->exists($methodname->barcode)
+                ? Storage::disk('public')->url($methodname->barcode)
+                : null;
+
         return view('user.payment')
             ->with(array(
                 'amount' => $request->session()->get('amount'),
                 'payment_mode' => $methodname,
+                'paymentAddress' => $paymentAddress,
+                'paymentBarcode' => $paymentBarcode,
                 'intent' => $request->session()->get('intent'),
                 'title' => 'Make Payment',
             ));
@@ -102,6 +150,7 @@ class DepositController extends Controller
         $dp->proof = "Credit Card";
         $dp->plan = 0;
         $dp->user = $user->id;
+        $this->setDepositPaymentMethodMetadata($dp, $request->session()->get('payment_method_id'));
         $dp->save();
 
         // Send deposit notification for Stripe payment
@@ -186,6 +235,8 @@ class DepositController extends Controller
 
         // delete the session variables
         $request->session()->forget('payment_mode');
+        $request->session()->forget('payment_method_id');
+        $request->session()->forget('payment_network');
         $request->session()->forget('amount');
         $request->session()->forget('intent');
 
@@ -195,14 +246,59 @@ class DepositController extends Controller
     //Save deposit requests
     public function savedeposit(Request $request)
     {
-
         $this->validate($request, [
             'proof' => 'image|mimes:jpg,jpeg,png|max:3000',
         ]);
 
         $settings = Settings::where('id', '=', '1')->first();
+        $sessionMethodId = $request->session()->get('payment_method_id');
+        $requestedMethodId = $request->input('payment_method_id', $sessionMethodId);
+        if ($sessionMethodId && (int) $requestedMethodId !== (int) $sessionMethodId) {
+            return redirect()->back()->with('error', 'The selected deposit method changed. Please restart the deposit.');
+        }
 
-        if ($request->hasfile('proof')) {
+        $method = null;
+        if ($requestedMethodId) {
+            $method = Wdmethod::whereKey($requestedMethodId)
+                ->whereIn('type', ['deposit', 'both'])
+                ->whereIn('methodtype', ['currency', 'crypto'])
+                ->where('status', 'enabled')
+                ->first();
+        } else {
+            // Preserve a valid in-flight session created before payment IDs
+            // were added, while still resolving against current admin config.
+            $legacyMethodName = $request->session()->get('payment_mode', $request->input('paymethd_method'));
+            $method = Wdmethod::where('name', $legacyMethodName)
+                ->whereIn('type', ['deposit', 'both'])
+                ->whereIn('methodtype', ['currency', 'crypto'])
+                ->where('status', 'enabled')
+                ->first();
+        }
+        if (!$method) {
+            return redirect()->back()->with('error', 'The selected deposit method is no longer enabled. Please choose another method.');
+        }
+        if ($sessionMethodId
+            && (string) $request->session()->get('payment_network') !== (string) $method->network) {
+            return redirect()->back()->with('error', 'The configured payment network changed. Restart the deposit and verify the current network.');
+        }
+
+        $sessionAmount = $request->session()->get('amount');
+        $amount = is_numeric($sessionAmount) ? (float) $sessionAmount : (float) $request->input('amount');
+        if (!is_finite($amount) || $amount <= 0) {
+            return redirect()->back()->with('error', 'The deposit amount is invalid. Please start the deposit again.');
+        }
+        $minimum = optional(SettingsCont::find(1))->minamt;
+        $minimum = is_numeric($minimum) ? (float) $minimum : 1;
+        if ($amount < $minimum) {
+            return redirect()->back()->with('error', 'The deposit amount is below the configured minimum.');
+        }
+        if ($request->filled('amount')
+            && abs(round((float) $request->input('amount') * 100) - round($amount * 100)) > 0) {
+            return redirect()->back()->with('error', 'The deposit amount changed. Please start the deposit again.');
+        }
+
+        $path = null;
+        if ($request->hasFile('proof')) {
             $file = $request->file('proof');
             $extension = $file->extension();
             $whitelist = array('pdf', 'doc', 'jpeg', 'jpg', 'png');
@@ -216,8 +312,12 @@ class DepositController extends Controller
         }
 
         $dp = new Deposit();
-        $dp->amount = $request['amount'];
-        $dp->payment_mode = $request['paymethd_method'];
+        $dp->amount = $amount;
+        $dp->payment_mode = $method->name;
+        $dp->payment_method_id = $method->id;
+        $dp->payment_network = $sessionMethodId
+            ? $request->session()->get('payment_network')
+            : $method->network;
         $dp->status = 'Pending';
         $dp->proof = $path;
         $dp->user = Auth::user()->id;
@@ -226,8 +326,8 @@ class DepositController extends Controller
         // Send deposit notification for manual deposit
         $this->notificationService->sendDepositNotification(
             Auth::user()->id,
-            $request['amount'],
-            $request['paymethd_method'],
+            $amount,
+            $method->name,
             'Pending'
         );
 
@@ -278,6 +378,8 @@ class DepositController extends Controller
 
         // Kill the session variables
         $request->session()->forget('payment_mode');
+        $request->session()->forget('payment_method_id');
+        $request->session()->forget('payment_network');
         $request->session()->forget('amount');
 
         return redirect()->route('deposits')

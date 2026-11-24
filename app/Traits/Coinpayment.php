@@ -342,7 +342,40 @@ trait Coinpayment
 
             $this->Setup($cpd->cp_pv_key, $cpd->cp_p_key);
 
-            if ($coin == 'ETH') {
+            $configuredMethodId = session('payment_method_id');
+            $payMethod = null;
+            if ($configuredMethodId) {
+                $payMethod = Wdmethod::whereKey($configuredMethodId)
+                    ->where('methodtype', 'crypto')
+                    ->whereIn('type', ['deposit', 'both'])
+                    ->where('status', 'enabled')
+                    ->first();
+                if (!$payMethod) {
+                    return redirect()->back()->with('error', 'The selected cryptocurrency deposit method is no longer enabled.');
+                }
+                if ((string) session('payment_network') !== (string) $payMethod->network) {
+                    return redirect()->back()->with('error', 'The configured payment network changed. Please restart the deposit and verify the current network.');
+                }
+
+                $expectedCoin = null;
+                if (strcasecmp($payMethod->name, 'Bitcoin') === 0) {
+                    $expectedCoin = 'BTC';
+                } elseif (strcasecmp($payMethod->name, 'Ethereum') === 0) {
+                    $expectedCoin = 'ETH';
+                } elseif (strcasecmp($payMethod->name, 'Litecoin') === 0) {
+                    $expectedCoin = 'LTC';
+                } elseif (strcasecmp($payMethod->name, 'BUSD') === 0) {
+                    $expectedCoin = 'BUSD';
+                } elseif (strcasecmp($payMethod->name, 'USDT') === 0) {
+                    $networkCode = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $payMethod->network));
+                    $expectedCoin = 'USDT.' . ($networkCode ?: 'TRC20');
+                }
+
+                if (!$expectedCoin || strtoupper((string) $coin) !== $expectedCoin) {
+                    return redirect()->back()->with('error', 'The selected crypto asset or network does not match the configured payment method.');
+                }
+                $address = $payMethod->wallet_address;
+            } elseif ($coin == 'ETH') {
                 $payMethod = Wdmethod::where('name', 'Ethereum')->first();
                 $address = $payMethod->wallet_address;
             } elseif ($coin == 'BTC') {
@@ -356,6 +389,9 @@ trait Coinpayment
                 $address = $payMethod->wallet_address;
             } else {
                 $payMethod = Wdmethod::where('name', 'USDT')->first();
+                $address = $payMethod->wallet_address;
+            }
+            if ($payMethod && !isset($address)) {
                 $address = $payMethod->wallet_address;
             }
 
@@ -386,6 +422,8 @@ trait Coinpayment
                 $txn->type = 'Deposit';
                 $txn->amount_paid = $amount;
                 $txn->user_id = $ui;
+                $txn->payment_method_id = $payMethod ? $payMethod->id : $configuredMethodId;
+                $txn->payment_network = $payMethod ? $payMethod->network : session('payment_network');
                 $txn->currency1 = 'USD';
                 $txn->currency2 = $coin;
                 $txn->save();
@@ -490,6 +528,7 @@ trait Coinpayment
                         $dp->proof = 'CoinPayments';
                         $dp->plan = "0";
                         $dp->user = $user->id;
+                        $this->setDepositPaymentMethodMetadata($dp, $txn->payment_method_id, $txn->payment_network);
                         $dp->save();
 
                         //give % to referral

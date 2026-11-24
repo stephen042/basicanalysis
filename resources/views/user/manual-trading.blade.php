@@ -3,8 +3,8 @@
 @section('content')
 <div class="space-y-6">
     <div>
-        <h1 class="text-2xl font-bold text-white">Manual Trading</h1>
-        <p class="mt-1 text-sm text-gray-400">Choose an instrument and direction. Trades are settled by the trading team.</p>
+        <h1 class="text-2xl font-bold text-white">Trade</h1>
+        <p class="mt-1 text-sm text-gray-400">Choose a pair and direction. Trades are manually settled by the trading team.</p>
     </div>
     <x-danger-alert /><x-success-alert />
     @if($errors->any())<div class="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{{ $errors->first() }}</div>@endif
@@ -46,18 +46,18 @@
             </div>
             @error('instrument')<p class="text-sm text-red-400">{{ $message }}</p>@enderror
             @error('amount')<p class="text-sm text-red-400">{{ $message }}</p>@enderror
-            <p class="text-xs text-gray-500">Trade size is reserved from your account balance when opened. Profit is credited to earnings after admin settlement. Entry prices are captured when a matching market asset is configured.</p>
+            <p class="text-xs text-gray-500">Trade size is reserved when opened and settled by the trading team. Crypto entry references use the configured base-asset price in USD; USDT pairs use that USD reference as a simulation proxy. This is not live exchange execution.</p>
         </form>
     </div>
     <div class="rounded-xl border border-dark-100 bg-dark-200 p-5">
-        <h2 class="mb-4 text-lg font-semibold text-white">Manual Trading History</h2>
+        <h2 class="mb-4 text-lg font-semibold text-white">Trade History</h2>
         <div class="overflow-x-auto">
             <table class="min-w-full text-left text-sm">
                 <thead class="text-xs uppercase text-gray-400"><tr><th class="p-3">Instrument</th><th class="p-3">Category</th><th class="p-3">Side</th><th class="p-3">Amount</th><th class="p-3">Leverage</th><th class="p-3">Duration</th><th class="p-3">Profit/Loss</th><th class="p-3">Status</th><th class="p-3">Date</th></tr></thead>
                 <tbody class="divide-y divide-dark-100 text-gray-200">
                 @forelse($trades as $trade)
                     <tr><td class="p-3">{{ $trade->instrument }}</td><td class="p-3 capitalize">{{ $trade->category }}</td><td class="p-3">{{ $trade->direction }}</td><td class="p-3">{{ $settings->currency }}{{ number_format($trade->amount,2) }}</td><td class="p-3">{{ $trade->leverage }}x</td><td class="p-3">{{ $trade->duration_minutes }}m</td><td class="p-3">{{ is_null($trade->result_amount) ? '—' : $settings->currency.number_format($trade->result_amount,2) }}</td><td class="p-3 capitalize">{{ $trade->status }}</td><td class="p-3 whitespace-nowrap">{{ $trade->created_at->format('M j, Y H:i') }}</td></tr>
-                @empty <tr><td colspan="9" class="p-8 text-center text-gray-400">No manual trades yet.</td></tr>@endforelse
+                @empty <tr><td colspan="9" class="p-8 text-center text-gray-400">No trades yet.</td></tr>@endforelse
                 </tbody>
             </table>
         </div>

@@ -51,7 +51,15 @@
                             @forelse ($deposits as $deposit)
                                 <tr class="hover:bg-dark-100">
                                     <td class="px-6 py-4 whitespace-nowrap text-white">{{ Auth::user()->currency }}{{ number_format($deposit->amount) }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-gray-300">{{ $deposit->payment_mode }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-gray-300">
+                                        {{ $deposit->paymentMethod?->name ?? $deposit->payment_mode }}
+                                        @if($deposit->payment_network)
+                                            <span class="block text-xs text-gray-500">Network: {{ $deposit->payment_network }}</span>
+                                        @endif
+                                        @if($deposit->paymentMethod && $deposit->payment_mode && $deposit->payment_mode !== $deposit->paymentMethod->name)
+                                            <span class="block text-xs text-gray-500">Processor: {{ $deposit->payment_mode }}</span>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         @if ($deposit->status == 'Processed')
                                             <span class="px-2.5 py-1 text-xs font-semibold text-green-800 bg-green-200 rounded-full">{{ $deposit->status }}</span>
@@ -137,4 +145,3 @@
         </div>
     </div>
 @endsection
-

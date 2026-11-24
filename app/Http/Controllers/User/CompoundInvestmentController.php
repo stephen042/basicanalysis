@@ -5,27 +5,29 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\CompoundInvestment;
 use App\Models\Settings;
+use App\Models\Tp_Transaction;
 use App\Models\Wdmethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\QueryException;
+use App\Support\SchemaInspector;
 
 class CompoundInvestmentController extends Controller
 {
     public function create()
     {
-        $methods = Wdmethod::whereIn('type', ['deposit', 'both'])
-            ->where('status', 'enabled')
-            ->orderBy('name')
-            ->get();
+        $methods = $this->enabledUsdtMethods();
 
         return view('user.compound-investment', [
             'title' => 'Start Compounding',
             'methods' => $methods,
             'performanceRate' => (float) (Auth::user()->trading_profit_rate ?: 0),
-            'currency' => optional(Settings::find(1))->currency ?: '$',
+            'currency' => 'USDT ',
+            'subscriptionBalance' => (float) Auth::user()->account_bal,
+            'subscriptionBalanceCurrency' => Auth::user()->currency ?: '$',
         ]);
     }
 
@@ -36,39 +38,109 @@ class CompoundInvestmentController extends Controller
             'duration_months' => 'required|integer|in:1,3,6,12',
             'recurring_amount' => 'nullable|numeric|min:0|max:1000000000',
             'recurring_frequency' => 'required|in:daily,weekly',
-            'payment_method_id' => 'required|exists:wdmethods,id',
+            'payment_source' => 'required|in:subscription_balance,direct_deposit',
+            'payment_method_id' => 'nullable|required_if:payment_source,direct_deposit|integer|exists:wdmethods,id',
             'submission_key' => 'required|string|max:64',
         ]);
 
-        $method = Wdmethod::whereKey($data['payment_method_id'])
-            ->whereIn('type', ['deposit', 'both'])
-            ->where('status', 'enabled')
-            ->firstOrFail();
+        if (!SchemaInspector::hasColumn('compound_investments', 'submission_key')) {
+            return back()
+                ->with('error', 'Compound investment database upgrade is pending. No payment was taken; please retry after the upgrade is applied.')
+                ->withInput();
+        }
 
-        $cacheKey = 'compound-investment-submit:' . Auth::id() . ':' . sha1($data['submission_key']);
+        $paymentSource = $data['payment_source'];
+        $paymentMethodId = $paymentSource === 'direct_deposit'
+            ? (int) $data['payment_method_id']
+            : null;
+        $amountCents = (int) round((float) $data['amount'] * 100);
+        $amount = $amountCents / 100;
+
+        $idempotencyKey = hash('sha256', Auth::id() . ':' . $data['submission_key']);
+        $cacheKey = 'compound-investment-submit:' . $idempotencyKey;
         if (!Cache::add($cacheKey, 1, now()->addMinutes(15))) {
             return back()->with('message', 'This investment request was already submitted.')->withInput();
         }
 
         try {
-            $investment = CompoundInvestment::create([
-                'user_id' => Auth::id(),
-                'payment_method_id' => $method->id,
-                'payment_method' => $method->name,
-                'amount' => $data['amount'],
-                'duration_months' => $data['duration_months'],
-                'monthly_return' => 27.8,
-                // Source this from the existing account setting; never trust
-                // a client-supplied performance rate.
-                'performance_rate' => (float) (Auth::user()->trading_profit_rate ?: 0),
-                'recurring_amount' => $data['recurring_amount'] ?: 0,
-                'recurring_frequency' => $data['recurring_frequency'],
-                'deposit_status' => 'pending',
-                'status' => 'pending',
-            ]);
+            $investment = DB::transaction(function () use ($data, $paymentSource, $paymentMethodId, $idempotencyKey, $amountCents, $amount) {
+                $user = \App\Models\User::whereKey(Auth::id())->lockForUpdate()->firstOrFail();
+                $method = null;
+
+                if ($paymentSource === 'direct_deposit') {
+                    $method = Wdmethod::whereKey($paymentMethodId)
+                        ->whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
+                        ->whereIn('type', ['deposit', 'both'])
+                        ->where('status', 'enabled')
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                } else {
+                    // The dashboard's "Subscription Balance" card reads
+                    // users.account_bal. Do not use total_balance (which adds
+                    // ROI), trading_balance, demo_balance, or ROI itself.
+                    $availableCents = (int) round((float) $user->account_bal * 100);
+                    if ($availableCents < $amountCents) {
+                        throw new \DomainException(
+                            'Insufficient Subscription Balance. Fund your account or choose Direct Deposit.'
+                        );
+                    }
+                }
+
+                $now = now();
+                $investment = CompoundInvestment::create([
+                    'user_id' => $user->id,
+                    'payment_method_id' => $method ? $method->id : null,
+                    'payment_method' => $method ? $method->name : 'Subscription Balance',
+                    'submission_key' => $idempotencyKey,
+                    'amount' => $amount,
+                    'duration_months' => $data['duration_months'],
+                    'monthly_return' => 27.8,
+                    // Source this from the existing account setting; never trust
+                    // a client-supplied performance rate.
+                    'performance_rate' => (float) ($user->trading_profit_rate ?: 0),
+                    'recurring_amount' => round((float) ($data['recurring_amount'] ?? 0), 2),
+                    'recurring_frequency' => $data['recurring_frequency'],
+                    'deposit_status' => $paymentSource === 'subscription_balance' ? 'approved' : 'pending',
+                    'status' => $paymentSource === 'subscription_balance' ? 'active' : 'pending',
+                    'approved_at' => $paymentSource === 'subscription_balance' ? $now : null,
+                    'start_date' => $paymentSource === 'subscription_balance' ? $now : null,
+                    'expected_completion_at' => $paymentSource === 'subscription_balance'
+                        ? $now->copy()->addMonths((int) $data['duration_months'])
+                        : null,
+                ]);
+
+                if ($paymentSource === 'subscription_balance') {
+                    $user->account_bal = ($availableCents - $amountCents) / 100;
+                    $user->save();
+
+                    Tp_Transaction::create([
+                        'user' => $user->id,
+                        'plan' => 'Compound investment #' . $investment->id . ' paid from Subscription Balance',
+                        'amount' => -$amount,
+                        'type' => 'Compound Investment',
+                    ]);
+                }
+
+                return $investment;
+            });
+        } catch (\DomainException $e) {
+            Cache::forget($cacheKey);
+            return back()->with('error', $e->getMessage())->withInput();
+        } catch (QueryException $e) {
+            Cache::forget($cacheKey);
+            $driverCode = isset($e->errorInfo[1]) ? (int) $e->errorInfo[1] : 0;
+            if ((string) $e->getCode() === '23000' || $driverCode === 1062) {
+                return back()->with('message', 'This investment request was already submitted.')->withInput();
+            }
+            throw $e;
         } catch (\Throwable $e) {
             Cache::forget($cacheKey);
             throw $e;
+        }
+
+        if ($paymentSource === 'subscription_balance') {
+            return redirect()->route('compound-investment.show', $investment)
+                ->with('success', 'Investment paid from Subscription Balance and activated.');
         }
 
         return redirect()->route('compound-investment.payment', $investment)
@@ -85,15 +157,21 @@ class CompoundInvestmentController extends Controller
             return redirect()->route('compound-investment.show', $investment);
         }
 
-        $methods = Wdmethod::whereIn('type', ['deposit', 'both'])
-            ->where('status', 'enabled')
-            ->orderBy('name')
-            ->get();
+        $methods = $this->enabledUsdtMethods();
+        $savedMethod = null;
+        $acceptedSavedMethod = false;
         if ($investment->payment_proof && $investment->payment_method_id) {
             $savedMethod = Wdmethod::find($investment->payment_method_id);
-            if ($savedMethod && !$methods->contains('id', (int) $savedMethod->id)) {
+            $acceptedSavedMethod = $this->isUsdtMethod($savedMethod)
+                && in_array($savedMethod->type, ['deposit', 'both'], true);
+            if ($acceptedSavedMethod
+                && !$methods->contains('id', (int) $savedMethod->id)) {
                 $methods->push($savedMethod);
             }
+        }
+        $legacyUnsupportedProof = $investment->payment_proof && !$acceptedSavedMethod;
+        if ($legacyUnsupportedProof) {
+            $methods = collect();
         }
         $selectedMethodId = (string) ($investment->payment_proof
             ? $investment->payment_method_id
@@ -111,7 +189,10 @@ class CompoundInvestmentController extends Controller
             'investment' => $investment,
             'paymentMethods' => $paymentMethods,
             'selectedMethodId' => $selectedMethodId,
-            'currency' => optional(Settings::find(1))->currency ?: '$',
+            'currency' => $legacyUnsupportedProof
+                ? (optional(Settings::find(1))->currency ?: '$')
+                : 'USDT ',
+            'legacyUnsupportedProof' => $legacyUnsupportedProof,
         ]);
     }
 
@@ -123,6 +204,7 @@ class CompoundInvestmentController extends Controller
         ]);
 
         $method = Wdmethod::whereKey($data['payment_method_id'])
+            ->whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
             ->whereIn('type', ['deposit', 'both'])
             ->where('status', 'enabled')
             ->firstOrFail();
@@ -172,7 +254,7 @@ class CompoundInvestmentController extends Controller
         return view('user.compound-investment-show', [
             'title' => 'Compound Investment',
             'investment' => $investment,
-            'currency' => optional(Settings::find(1))->currency ?: '$',
+            'currency' => $this->investmentCurrency($investment),
         ]);
     }
 
@@ -214,5 +296,26 @@ class CompoundInvestmentController extends Controller
             'swift' => $method->swift_code,
             'instructions' => $method->duration,
         ];
+    }
+
+    private function enabledUsdtMethods()
+    {
+        return Wdmethod::whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
+            ->whereIn('type', ['deposit', 'both'])
+            ->where('status', 'enabled')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function isUsdtMethod($method): bool
+    {
+        return $method && strtoupper(trim((string) $method->name)) === 'USDT';
+    }
+
+    private function investmentCurrency(CompoundInvestment $investment): string
+    {
+        return in_array(strtoupper(trim((string) $investment->payment_method)), ['USDT', 'SUBSCRIPTION BALANCE'], true)
+            ? 'USDT '
+            : (optional(Settings::find(1))->currency ?: '$');
     }
 }

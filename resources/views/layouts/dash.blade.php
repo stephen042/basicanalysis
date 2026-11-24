@@ -51,83 +51,84 @@
         </script>
 
 
-        <!-- iOS Mobile Navigation Fix -->
+        <!-- Mobile bottom navigation and safe-area layout -->
         <style>
-            /* Prevent iOS Safari scrolling issues with fixed bottom navigation */
-            @@supports (-webkit-touch-callout: none) {
-                .mobile-nav-container {
-                    position: fixed !important;
-                    bottom: 0 !important;
-                    left: 0 !important;
-                    right: 0 !important;
-                    z-index: 9999 !important;
-                    -webkit-transform: translateZ(0);
-                    transform: translateZ(0);
-                    -webkit-backface-visibility: hidden;
-                    backface-visibility: hidden;
+            @@media screen and (max-width: 1023px) {
+                html,
+                body {
+                    overflow-x: hidden;
                 }
 
-                /* Prevent pull-to-refresh on mobile */
                 body {
+                    position: relative;
+                    height: 100%;
                     overscroll-behavior-y: contain;
                     -webkit-overflow-scrolling: touch;
                 }
 
-                /* Ensure safe area handling on iPhone */
-                .mobile-nav-safe {
-                    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
-                    padding-left: calc(env(safe-area-inset-left, 0px) + 0px);
-                    padding-right: calc(env(safe-area-inset-right, 0px) + 0px);
-                }
-            }
-
-            /* Additional mobile stability fixes */
-            @@media screen and (max-width: 1024px) {
-
-                html,
-                body {
-                    position: relative;
-                    overflow-x: hidden;
-                    -webkit-overflow-scrolling: touch;
-                    height: 100%;
-                }
-
-                /* Add padding to main content to prevent overlap with mobile nav */
-                main {
-                    padding-bottom: 90px !important;
-                }
-
-                /* Add padding to sidebar to prevent overlap with mobile nav */
-                aside {
-                    padding-bottom: 90px !important;
-                }
-
-                /* Ensure sidebar content doesn't overflow */
-                aside .flex.flex-col.h-full {
-                    height: calc(100vh - 90px) !important;
-                }
-
-                /* Prevent zoom on input focus */
                 input,
                 select,
                 textarea {
                     font-size: 16px !important;
                 }
 
-                /* Professional mobile nav styling */
+                main {
+                    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+                }
+
+                aside {
+                    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+                }
+
+                aside .flex.flex-col.h-full {
+                    height: calc(100vh - 76px - env(safe-area-inset-bottom, 0px)) !important;
+                }
+
                 .mobile-nav-container {
-                    background: none;
-                    box-shadow: none;
+                    padding-bottom: env(safe-area-inset-bottom, 0px);
+                    padding-left: env(safe-area-inset-left, 0px);
+                    padding-right: env(safe-area-inset-right, 0px);
+                    background: linear-gradient(180deg, rgba(35, 38, 39, 0.99), #121212);
+                    border-top: 1px solid rgba(245, 192, 109, 0.35);
+                    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.38);
+                    -webkit-transform: translateZ(0);
+                    transform: translateZ(0);
                 }
 
                 .mobile-nav-inner {
-                    background: rgba(35, 38, 39, 0.98);
-                    backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
-                    border-top: 1px solid rgba(52, 56, 57, 0.5);
-                    border-radius: 0;
-                    margin: 0;
-                    box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.3);
+                    display: flex;
+                    min-height: 68px;
+                    align-items: center;
+                    justify-content: space-around;
+                    padding: 5px 8px 4px;
+                }
+
+                .mobile-nav-item {
+                    display: flex;
+                    min-height: 56px;
+                    flex: 1 1 0;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                    color: rgb(var(--nw2));
+                    text-decoration: none;
+                    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+                    -webkit-tap-highlight-color: transparent;
+                }
+
+                .mobile-nav-item[aria-current="page"] {
+                    color: rgb(var(--p1));
+                    font-weight: 600;
+                    border-radius: 12px;
+                    background: linear-gradient(135deg, rgba(154, 217, 83, 0.16), rgba(245, 192, 109, 0.12));
+                    box-shadow: inset 0 0 0 1px rgba(154, 217, 83, 0.24);
+                }
+
+                .mobile-nav-item:focus-visible {
+                    outline: 2px solid rgb(var(--s1));
+                    outline-offset: -2px;
+                    border-radius: 10px;
                 }
             }
         </style>
@@ -186,78 +187,37 @@
 
 <body class="bg-dark-400 text-gray-300 antialiased">
     <div x-data="{ sidebarOpen: window.innerWidth >= 1024 }" class="flex h-screen bg-dark-300" x-cloak>
-        <!-- Mobile Bottom Navigation - Only visible on mobile/tablet -->
-        <div class="mobile-nav-container fixed bottom-0 left-0 right-0 z-50 lg:hidden"
-            style="touch-action: manipulation; overscroll-behavior: contain;">
-            <div class="mobile-nav-safe">
-                <div class="mobile-nav-inner px-6 py-3">
-                    <div class="flex items-center justify-between">
-                        <!-- Left Side: Language Translator -->
-                        <div class="flex-shrink-0 w-12 flex justify-center">
-                            <div class="w-9 h-9  flex items-center justify-center">
-                                @include('layouts.lang')
-                            </div>
-                        </div>
-
-                        <!-- Center: Main Navigation Items -->
-                        <div class="flex-1 flex items-center justify-center space-x-1">
-                            @php
-                                $mobileMenuItems = [
-                                    ['route' => 'dashboard', 'icon' => 'fa-solid fa-house', 'label' => 'Home'],
-
-                                    ['route' => 'trading-bots.index', 'icon' => 'fa-solid fa-robot', 'label' => 'Bots'],
-                                ];
-                            @endphp
-
-                            @foreach ($mobileMenuItems as $item)
-                                @php
-                                    $isActive =
-                                        request()->routeIs($item['route']) ||
-                                        (isset($item['activeRoutes']) && request()->routeIs($item['activeRoutes']));
-                                @endphp
-                                <a href="{{ route($item['route']) }}"
-                                    class="relative flex-1 flex flex-col items-center justify-center py-3 px-2 rounded-2xl transition-all duration-300 group max-w-[80px]">
-
-                                    @if ($isActive)
-                                        <!-- Active State -->
-                                        <div class="absolute inset-0 rounded-2xl shadow-lg"
-                                            style="background: linear-gradient(135deg, rgb(154, 217, 83), rgb(245, 192, 109));">
-                                        </div>
-                                        <div class="relative z-10 flex flex-col items-center">
-                                            <div
-                                                class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center mb-1 shadow-lg">
-                                                <i class="{{ $item['icon'] }} text-white text-sm"></i>
-                                            </div>
-                                            <span class="text-xs font-semibold text-white">{{ $item['label'] }}</span>
-                                        </div>
-                                    @else
-                                        <!-- Inactive State -->
-                                        <div
-                                            class="relative z-10 flex flex-col items-center group-hover:scale-110 transition-transform duration-200">
-                                            <div class="w-8 h-8  flex items-center justify-center mb-1 group-hover:shadow-lg transition-all duration-200"
-                                                style="background-color: rgba(52, 56, 57, 0.8);">
-                                                <i
-                                                    class="{{ $item['icon'] }} text-gray-400 text-sm group-hover:text-primary transition-colors duration-200"></i>
-                                            </div>
-                                            <span
-                                                class="text-xs font-medium text-gray-400 group-hover:text-primary transition-colors duration-200">{{ $item['label'] }}</span>
-                                        </div>
-                                    @endif
-                                </a>
-                            @endforeach
-                        </div>
-
-                        <!-- Right Side: Live Chat -->
-                        <div class="flex-shrink-0 w-12 flex justify-center">
-                            <button onclick="toggleLiveChat()"
-                                class="w-9 h-9 flex items-center justify-center hover:bg-primary/20 transition-all duration-200">
-
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        <!-- Four-item mobile navigation; desktop sidebar remains unchanged. -->
+        <nav class="mobile-nav-container fixed inset-x-0 bottom-0 z-50 lg:hidden"
+            aria-label="Mobile navigation" style="touch-action: manipulation;">
+            <div class="mobile-nav-inner">
+                @php
+                    $mobileMenuItems = [
+                        ['route' => 'deposits', 'icon' => 'fa-solid fa-wallet', 'label' => 'Fund', 'activeRoutes' => ['deposits', 'payment', 'pay.crypto']],
+                        ['route' => 'copy-trading.index', 'icon' => 'fa-solid fa-copy', 'label' => 'Copy Trading', 'activeRoutes' => ['copy-trading.*']],
+                        ['route' => 'tradinghistory', 'icon' => 'fa-solid fa-clock-rotate-left', 'label' => 'History', 'activeRoutes' => ['tradinghistory', 'accounthistory', 'trading.history', 'copy-trading.history']],
+                        ['route' => 'compound-investment.create', 'icon' => 'fa-solid fa-chart-pie', 'label' => 'Compounding', 'activeRoutes' => ['compound-investment.*', 'compoundinterest']],
+                    ];
+                @endphp
+                @foreach ($mobileMenuItems as $item)
+                    @php
+                        $isActive = false;
+                        foreach ($item['activeRoutes'] as $activeRoute) {
+                            if (request()->routeIs($activeRoute)) {
+                                $isActive = true;
+                                break;
+                            }
+                        }
+                    @endphp
+                    <a href="{{ route($item['route']) }}"
+                        class="mobile-nav-item"
+                        @if($isActive) aria-current="page" @endif>
+                        <i class="{{ $item['icon'] }} text-lg" aria-hidden="true"></i>
+                        <span class="text-[11px] leading-tight text-center">{{ $item['label'] }}</span>
+                    </a>
+                @endforeach
             </div>
-        </div>
+        </nav>
         <!-- Sidebar -->
         <aside x-show="sidebarOpen" @click.away="sidebarOpen = window.innerWidth >= 1024 ? true : false"
             x-transition:enter="transition-all duration-300" x-transition:enter-start="-translate-x-full"

@@ -51,7 +51,7 @@
         </x-nav-link>
 
         <x-nav-link href="{{ route('manual-trading.index') }}" :active="request()->routeIs('manual-trading.*')" icon="fas fa-chart-line">
-            Manual Trading
+            Trade
         </x-nav-link>
        
             <x-nav-link href="{{ route('tradinghistory') }}" :active="request()->routeIs('tradinghistory')" icon="fas fa-chart-line">

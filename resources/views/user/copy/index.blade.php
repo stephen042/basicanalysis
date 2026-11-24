@@ -325,11 +325,11 @@
                     <div class="space-y-3 mb-4">
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-400">Min Copy Amount:</span>
-                            <span class="text-white font-medium">${{ number_format($expert->min_copy_amount) }}</span>
+                            <span class="text-white font-medium">${{ number_format((float) $expert->min_copy_amount, 2) }}</span>
                         </div>
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-400">Max Copy Amount:</span>
-                            <span class="text-white font-medium">${{ number_format($expert->max_copy_amount) }}</span>
+                            <span class="text-white font-medium">${{ number_format((float) $expert->max_copy_amount, 2) }}</span>
                         </div>
 
                     </div>
@@ -413,12 +413,12 @@
                 <input type="number" 
                        id="copyAmount"
                        name="amount" 
-                       min="100" 
+                       min="0.01"
                        step="0.01"
                        placeholder="Enter amount to copy"
                        class="w-full px-4 py-3 bg-dark-400 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:border-primary focus:outline-none"
                        required>
-                <p class="text-xs text-gray-400 mt-1">Minimum: $<span id="minAmount">100</span> | Maximum: $<span id="maxAmount">10,000</span></p>
+                 <p class="text-xs text-gray-400 mt-1">Minimum: $<span id="minAmount">—</span> | Maximum: $<span id="maxAmount">—</span></p>
             </div>
 
             <div>
@@ -469,7 +469,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+var copyTraderLimits = @json($expertTraders->mapWithKeys(function ($expert) {
+    return [$expert->id => [
+        'min' => (float) $expert->min_copy_amount,
+        'max' => (float) $expert->max_copy_amount,
+    ]];
+}));
+
 function showCopyModal(expertId) {
+    var limits = copyTraderLimits[String(expertId)];
+    if (!limits) return;
+
+    var amountInput = document.getElementById('copyAmount');
+    amountInput.min = limits.min;
+    amountInput.max = limits.max;
+    amountInput.value = '';
+    document.getElementById('minAmount').textContent = Number(limits.min).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('maxAmount').textContent = Number(limits.max).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('expertTraderId').value = expertId;
     document.getElementById('copyForm').action = '{{ route("copy-trading.subscribe") }}';
     document.getElementById('copyModal').classList.remove('hidden');

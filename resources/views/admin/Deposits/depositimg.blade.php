@@ -33,7 +33,11 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                 <p><strong>Client Name:</strong> {{ $deposit->duser->name }}</p>
                                 <p><strong>Client Email:</strong> {{ $deposit->duser->email }}</p>
                                 <p><strong>Amount:</strong> {{ $deposit->duser->currency }}{{ number_format($deposit->amount, 2) }}</p>
-                                <p><strong>Payment Method:</strong> {{ $deposit->payment_mode }}</p>
+                                <p><strong>Payment Method:</strong> {{ $deposit->paymentMethod?->name ?? $deposit->payment_mode }}</p>
+                                @if($deposit->payment_network)<p><strong>Network:</strong> {{ $deposit->payment_network }}</p>@endif
+                                @if($deposit->paymentMethod && $deposit->payment_mode && $deposit->payment_mode !== $deposit->paymentMethod->name)
+                                    <p><strong>Payment Processor:</strong> {{ $deposit->payment_mode }}</p>
+                                @endif
                                 <p><strong>Status:</strong> 
                                     @if ($deposit->status == 'Processed')
                                         <span class="badge badge-success">{{ $deposit->status }}</span>
@@ -55,7 +59,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                 <div class="mb-3">
                                     <strong>Deposit ID:</strong> {{ $deposit->id }}<br>
                                     <strong>Amount:</strong> {{ $settings->currency }}{{ number_format($deposit->amount, 2) }}<br>
-                                    <strong>Payment Method:</strong> {{ $deposit->payment_mode }}<br>
+                                    <strong>Payment Method:</strong> {{ $deposit->paymentMethod?->name ?? $deposit->payment_mode }}<br>
+                                    @if($deposit->payment_network)<strong>Network:</strong> {{ $deposit->payment_network }}<br>@endif
                                     <strong>Status:</strong> <span class="badge badge-{{ $deposit->status == 'Processed' ? 'success' : 'danger' }}">{{ $deposit->status }}</span><br>
                                     <strong>Date:</strong> {{ $deposit->created_at->toDayDateTimeString() }}
                                 </div>

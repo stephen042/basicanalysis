@@ -8,6 +8,7 @@ use App\Models\CompoundInvestmentTopup;
 use App\Models\Settings;
 use App\Models\Tp_Transaction;
 use App\Models\User;
+use App\Models\Wdmethod;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,7 @@ class CompoundInvestmentController extends Controller
             'investments' => CompoundInvestment::with(['user', 'topups'])
                 ->latest()
                 ->paginate(25),
-            'currency' => optional(Settings::find(1))->currency ?: '$',
+            'currency' => $this->investmentCurrency($investment),
         ]);
     }
 
@@ -33,6 +34,11 @@ class CompoundInvestmentController extends Controller
         $investment = CompoundInvestment::with(['user', 'topups.admin', 'paymentMethod'])
             ->findOrFail($id);
         $method = $investment->paymentMethod;
+        $isUsdtPayment = $this->isUsdtMethod($method);
+        if (!$isUsdtPayment || !in_array($method->type, ['deposit', 'both'], true)) {
+            $method = null;
+            $isUsdtPayment = false;
+        }
         $address = $method ? ($method->wallet_address ?: env($method->name)) : null;
         $barcode = null;
         if ($method && $method->barcode && Storage::disk('public')->exists($method->barcode)) {
@@ -52,6 +58,7 @@ class CompoundInvestmentController extends Controller
                 'swift' => $method ? $method->swift_code : null,
                 'instructions' => $method ? $method->duration : null,
             ],
+            'isUsdtPayment' => $isUsdtPayment,
             'currency' => optional(Settings::find(1))->currency ?: '$',
         ]);
     }
@@ -77,6 +84,15 @@ class CompoundInvestmentController extends Controller
                 }
                 if ($data['decision'] === 'approve' && !$locked->payment_proof) {
                     throw new \DomainException('A payment receipt is required before approval.');
+                }
+                if ($data['decision'] === 'approve') {
+                    $paymentMethod = $locked->payment_method_id
+                        ? Wdmethod::find($locked->payment_method_id)
+                        : null;
+                    if (!$this->isUsdtMethod($paymentMethod)
+                        || !in_array($paymentMethod->type, ['deposit', 'both'], true)) {
+                        throw new \DomainException('Only compound investment payments submitted using USDT can be approved.');
+                    }
                 }
 
                 if ($data['decision'] === 'approve') {
@@ -164,7 +180,7 @@ class CompoundInvestmentController extends Controller
 
         $investment->load('topups');
         $user = User::findOrFail($userId);
-        $currency = optional(Settings::find(1))->currency ?: '$';
+        $currency = $this->investmentCurrency($investment);
         $totalEarnings = (float) $investment->topups()->sum('amount');
         try {
             Mail::raw(
@@ -225,7 +241,7 @@ class CompoundInvestmentController extends Controller
 
         $investment->refresh()->load(['user', 'topups']);
         $user = $investment->user;
-        $currency = optional(Settings::find(1))->currency ?: '$';
+        $currency = $this->investmentCurrency($investment);
         $totalEarnings = (float) $investment->topups->sum('amount');
         try {
             Mail::raw(
@@ -264,6 +280,18 @@ class CompoundInvestmentController extends Controller
         }
 
         return true;
+    }
+
+    private function isUsdtMethod($method): bool
+    {
+        return $method && strtoupper(trim((string) $method->name)) === 'USDT';
+    }
+
+    private function investmentCurrency(CompoundInvestment $investment): string
+    {
+        return in_array(strtoupper(trim((string) $investment->payment_method)), ['USDT', 'SUBSCRIPTION BALANCE'], true)
+            ? 'USDT '
+            : (optional(Settings::find(1))->currency ?: '$');
     }
 
     private function tableExists($table)

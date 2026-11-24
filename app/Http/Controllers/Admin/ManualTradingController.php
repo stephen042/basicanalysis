@@ -58,13 +58,13 @@ class ManualTradingController extends Controller
 
             Tp_Transaction::create([
                 'user' => $user->id,
-                'plan' => 'Manual trade principal returned: ' . $lockedTrade->instrument,
+                'plan' => 'Trade principal returned: ' . $lockedTrade->instrument,
                 'amount' => $principalReturn,
                 'type' => 'Transfer',
             ]);
             Tp_Transaction::create([
                 'user' => $user->id,
-                'plan' => 'Manual trade ' . ($profit > 0 ? 'profit' : 'loss') . ': ' . $lockedTrade->instrument,
+                'plan' => 'Trade ' . ($profit > 0 ? 'profit' : 'loss') . ': ' . $lockedTrade->instrument,
                 'amount' => $signedResult,
                 'type' => 'ROI',
             ]);
@@ -79,9 +79,9 @@ class ManualTradingController extends Controller
         try {
             $user = User::findOrFail($userId);
             Mail::raw(
-                "Your manual trade has been completed.\nInstrument: {$trade->instrument}\nDirection: {$trade->direction}\nAmount: {$trade->amount}\nResult: " . ($trade->result_amount >= 0 ? 'Profit ' : 'Loss ') . number_format(abs((float) $trade->result_amount), 2) . "\nStatus: Completed",
+                "Your trade has been completed.\nInstrument: {$trade->instrument}\nDirection: {$trade->direction}\nAmount: {$trade->amount}\nResult: " . ($trade->result_amount >= 0 ? 'Profit ' : 'Loss ') . number_format(abs((float) $trade->result_amount), 2) . "\nStatus: Completed",
                 function ($message) use ($user) {
-                    $message->to($user->email)->subject('Manual trade completed');
+                    $message->to($user->email)->subject('Trade completed');
                 }
             );
         } catch (\Exception $e) {

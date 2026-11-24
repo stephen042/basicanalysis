@@ -92,6 +92,7 @@ class FlutterwaveController extends Controller
         $dp->proof = "Credit Card";
         $dp->plan = "0";
         $dp->user = $user->id;
+        $this->setDepositPaymentMethodMetadata($dp, session('payment_method_id'));
         $dp->save();
 
         try {

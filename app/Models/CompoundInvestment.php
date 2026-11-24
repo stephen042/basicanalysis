@@ -8,6 +8,7 @@ class CompoundInvestment extends Model
 {
     protected $fillable = [
         'user_id', 'payment_method_id', 'payment_method', 'payment_proof',
+        'submission_key',
         'amount', 'duration_months', 'monthly_return', 'performance_rate',
         'recurring_amount', 'recurring_frequency', 'deposit_status', 'status',
         'approved_at', 'start_date', 'expected_completion_at', 'rejected_at',

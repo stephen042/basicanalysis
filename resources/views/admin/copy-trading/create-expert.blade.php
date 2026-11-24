@@ -167,8 +167,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                             <div class="form-group">
                                                 <label for="min_copy_amount">Minimum Copy Amount ($) <span class="text-danger">*</span></label>
                                                 <input type="number" class="form-control @error('min_copy_amount') is-invalid @enderror" 
-                                                       id="min_copy_amount" name="min_copy_amount" value="{{ old('min_copy_amount', 100) }}" 
-                                                       min="1" step="0.01" required>
+                                                       id="min_copy_amount" name="min_copy_amount" value="{{ old('min_copy_amount') }}"
+                                                       min="0.01" step="0.01" required>
                                                 @error('min_copy_amount')
                                                     <div class="invalid-feedback">{{ $message }}</div>
                                                 @enderror
@@ -179,8 +179,8 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                             <div class="form-group">
                                                 <label for="max_copy_amount">Maximum Copy Amount ($) <span class="text-danger">*</span></label>
                                                 <input type="number" class="form-control @error('max_copy_amount') is-invalid @enderror" 
-                                                       id="max_copy_amount" name="max_copy_amount" value="{{ old('max_copy_amount', 10000) }}" 
-                                                       min="1000" step="0.01" required>
+                                                       id="max_copy_amount" name="max_copy_amount" value="{{ old('max_copy_amount') }}"
+                                                       min="0.01" step="0.01" required>
                                                 @error('max_copy_amount')
                                                     <div class="invalid-feedback">{{ $message }}</div>
                                                 @enderror

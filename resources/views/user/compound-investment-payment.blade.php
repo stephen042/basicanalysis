@@ -16,8 +16,8 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <p class="text-xs font-semibold uppercase tracking-widest text-primary">Investment #{{ $investment->id }}</p>
-            <h1 class="mt-1 text-2xl font-bold text-white">Complete your deposit</h1>
-            <p class="mt-1 text-sm text-gray-400">Select the payment currency or method you intend to use.</p>
+            <h1 class="mt-1 text-2xl font-bold text-white">Complete your USDT payment</h1>
+            <p class="mt-1 text-sm text-gray-400">Send the exact amount in USDT using the configured network below.</p>
         </div>
         <a href="{{ route('compound-investment.show', $investment) }}" class="rounded-lg border border-dark-100 px-4 py-2 text-sm text-gray-200">Investment details</a>
     </div>
@@ -44,11 +44,15 @@
 
             <div class="rounded-2xl border border-dark-100 bg-dark-200 p-5 md:p-7">
                 <div class="mb-4">
-                    <h2 class="text-lg font-semibold text-white">1. Choose your payment method</h2>
-                    <p class="mt-1 text-sm text-gray-400">These are the same enabled deposit methods configured by your administrator.</p>
+                    <h2 class="text-lg font-semibold text-white">1. USDT payment method</h2>
+                    <p class="mt-1 text-sm text-gray-400">Compound investment payments accept USDT only.</p>
                 </div>
-                @if(empty($paymentMethods))
-                    <div class="rounded-lg bg-red-500/10 p-4 text-sm text-red-300">No enabled Deposit/Both payment methods are configured. Please contact support.</div>
+                @if($legacyUnsupportedProof)
+                    <div class="rounded-lg bg-red-500/10 p-4 text-sm text-red-300">
+                        This existing receipt was submitted using a method that is not accepted for compound investments. Only an enabled USDT deposit method can be approved. Contact support for assistance.
+                    </div>
+                @elseif(empty($paymentMethods))
+                    <div class="rounded-lg bg-red-500/10 p-4 text-sm text-red-300">No enabled USDT payment method is configured. Please contact support.</div>
                 @else
                     @if($investment->payment_proof)
                         <div class="rounded-lg bg-blue-500/10 p-4 text-sm text-blue-200">
@@ -80,7 +84,7 @@
             </div>
 
             <div class="rounded-2xl border border-dark-100 bg-dark-200 p-5 md:p-7">
-                <h2 class="text-lg font-semibold text-white">2. Payment details</h2>
+                <h2 class="text-lg font-semibold text-white">2. USDT payment details</h2>
                 <div id="compound-payment-details" class="mt-4" data-selected="{{ $selectedMethodId }}">
                     <h3 id="payment-method-title" class="font-semibold text-white">{{ $payment['name'] ?? $investment->payment_method }}</h3>
                     <div id="payment-admin-instructions" class="mt-3 rounded-lg bg-dark-100 p-4 text-sm leading-6 text-gray-200 whitespace-pre-line">{{ $payment['instructions'] ?? 'Follow the payment details for the selected method.' }}</div>
@@ -110,7 +114,7 @@
 
         <aside class="space-y-6 lg:col-span-2">
             <div class="rounded-2xl border border-dark-100 bg-dark-200 p-5">
-                <h2 class="text-lg font-semibold text-white">3. Confirm your payment</h2>
+                <h2 class="text-lg font-semibold text-white">3. Confirm your USDT payment</h2>
                 @if($investment->payment_proof)
                     <div class="mt-3 rounded-lg bg-blue-500/10 p-4 text-sm text-blue-200">
                         Receipt submitted using <b>{{ $investment->payment_method }}</b>. Your request is awaiting admin review and remains inactive until approved.

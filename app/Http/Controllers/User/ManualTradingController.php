@@ -15,8 +15,14 @@ use Illuminate\Support\Facades\Mail;
 
 class ManualTradingController extends Controller
 {
-    private $instruments = [
-        'crypto' => ['BTC/USD', 'ETH/USD', 'BTC/USDT', 'ETH/USDT', 'SOL/USD', 'XRP/USD'],
+    private $cryptoBases = [
+        'BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE',
+        'AVAX', 'LINK', 'LTC', 'DOT', 'TRX', 'BCH', 'TON',
+    ];
+
+    private $quotes = ['USD', 'USDT'];
+
+    private $nonCryptoInstruments = [
         'forex' => ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD'],
         'indices' => ['NASDAQ 100', 'S&P 500', 'Dow Jones', 'FTSE 100'],
     ];
@@ -28,9 +34,11 @@ class ManualTradingController extends Controller
 
     public function index()
     {
+        $instruments = $this->availableInstruments();
+
         return view('user.manual-trading', [
-            'title' => 'Manual Trading',
-            'instruments' => $this->instruments,
+            'title' => 'Trade',
+            'instruments' => $instruments,
             'leverages' => $this->leverages,
             'trades' => ManualTrade::where('user_id', Auth::id())->latest()->paginate(15),
         ]);
@@ -48,7 +56,8 @@ class ManualTradingController extends Controller
             'submission_key' => 'required|string|max:64',
         ]);
 
-        if (!in_array($data['instrument'], $this->instruments[$data['category']], true)) {
+        $instruments = $this->availableInstruments();
+        if (!in_array($data['instrument'], $instruments[$data['category']], true)) {
             return back()->withErrors(['instrument' => 'That instrument is not available in this category.'])->withInput();
         }
         if (!in_array((int) $data['leverage'], $this->leverages[$data['category']], true)) {
@@ -61,52 +70,61 @@ class ManualTradingController extends Controller
             return back()->with('message', 'This trade request was already submitted.')->withInput();
         }
         try {
-        $trade = DB::transaction(function () use ($data, $userId) {
-            $user = User::whereKey($userId)->lockForUpdate()->firstOrFail();
-            if (!$user->trading_enabled) {
-                throw new \DomainException('Manual trading is disabled for your account.');
-            }
-            if ((float) $user->account_bal < (float) $data['amount']) {
-                throw new \DomainException('Insufficient account balance to open this trade.');
-            }
+            $trade = DB::transaction(function () use ($data, $userId) {
+                $user = User::whereKey($userId)->lockForUpdate()->firstOrFail();
+                if (!$user->trading_enabled) {
+                    throw new \DomainException('Trading is disabled for your account.');
+                }
+                if ((float) $user->account_bal < (float) $data['amount']) {
+                    throw new \DomainException('Insufficient account balance to open this trade.');
+                }
 
-            $symbol = strtoupper(str_replace('/', '', $data['instrument']));
-            $asset = TradingAsset::where('is_active', true)
-                ->where(function ($query) use ($data, $symbol) {
-                    $query->whereRaw("UPPER(REPLACE(symbol, '/', '')) = ?", [$symbol])
-                        ->orWhereRaw('UPPER(name) = ?', [strtoupper($data['instrument'])]);
-                })->first();
-            if (!$asset && $data['category'] === 'crypto' && strpos($data['instrument'], '/') !== false) {
-                $baseSymbol = strtoupper(explode('/', $data['instrument'])[0] . 'USD');
-                $asset = TradingAsset::where('is_active', true)
-                    ->whereRaw("UPPER(REPLACE(symbol, '/', '')) = ?", [$baseSymbol])
-                    ->first();
-            }
+                $asset = null;
+                if ($data['category'] === 'crypto') {
+                    $baseSymbol = strtoupper(explode('/', $data['instrument'])[0]);
+                    $asset = TradingAsset::where('is_active', true)
+                        ->where('status', 'active')
+                        ->where('type', 'crypto')
+                        ->whereRaw('UPPER(symbol) = ?', [$baseSymbol])
+                        ->where('current_price', '>', 0)
+                        ->first();
 
-            $trade = ManualTrade::create([
-                'user_id' => $user->id,
-                'category' => $data['category'],
-                'instrument' => $data['instrument'],
-                'direction' => $data['direction'],
-                'amount' => $data['amount'],
-                'leverage' => $data['leverage'],
-                'duration_minutes' => $data['duration_minutes'],
-                'entry_price' => $asset ? $asset->current_price : null,
-                'status' => 'active',
-            ]);
+                    if (!$asset) {
+                        throw new \DomainException('The configured market reference for this pair is unavailable.');
+                    }
+                } else {
+                    $symbol = strtoupper(str_replace('/', '', $data['instrument']));
+                    $asset = TradingAsset::where('is_active', true)
+                        ->where(function ($query) use ($data, $symbol) {
+                            $query->whereRaw("UPPER(REPLACE(symbol, '/', '')) = ?", [$symbol])
+                                ->orWhereRaw('UPPER(name) = ?', [strtoupper($data['instrument'])]);
+                        })->first();
+                }
 
-            $user->account_bal = round((float) $user->account_bal - (float) $data['amount'], 2);
-            $user->save();
+                $trade = ManualTrade::create([
+                    'user_id' => $user->id,
+                    'category' => $data['category'],
+                    'instrument' => $data['instrument'],
+                    'direction' => $data['direction'],
+                    'amount' => $data['amount'],
+                    'leverage' => $data['leverage'],
+                    'duration_minutes' => $data['duration_minutes'],
+                    'entry_price' => $asset ? $asset->current_price : null,
+                    'status' => 'active',
+                ]);
 
-            Tp_Transaction::create([
-                'user' => $user->id,
-                'plan' => 'Manual trade opened: ' . $trade->instrument . ' ' . $trade->direction,
-                'amount' => -$data['amount'],
-                'type' => 'ROI',
-            ]);
+                $user->account_bal = round((float) $user->account_bal - (float) $data['amount'], 2);
+                $user->save();
 
-            return $trade;
-        });
+                Tp_Transaction::create([
+                    'user' => $user->id,
+                    'plan' => 'Trade opened: ' . $trade->instrument . ' ' . $trade->direction,
+                    'amount' => -$data['amount'],
+                    'type' => 'ROI',
+                ]);
+
+                return $trade;
+            });
         } catch (\DomainException $e) {
             Cache::forget($cacheKey);
             return back()->withErrors(['amount' => $e->getMessage()])->withInput();
@@ -117,9 +135,9 @@ class ManualTradingController extends Controller
 
         try {
             Mail::raw(
-                "Your manual trade is open.\nInstrument: {$trade->instrument}\nCategory: {$trade->category}\nDirection: {$trade->direction}\nAmount: {$trade->amount}\nLeverage: {$trade->leverage}x\nDuration: {$trade->duration_minutes} minutes\nEntry price: " . ($trade->entry_price ?: 'Not available') . "\nStatus: Active",
+                "Your trade is open.\nInstrument: {$trade->instrument}\nCategory: {$trade->category}\nDirection: {$trade->direction}\nAmount: {$trade->amount}\nLeverage: {$trade->leverage}x\nDuration: {$trade->duration_minutes} minutes\nEntry price: " . ($trade->entry_price ?: 'Not available') . "\nStatus: Active",
                 function ($message) use ($trade) {
-                    $message->to($trade->user->email)->subject('Manual trade opened');
+                    $message->to($trade->user->email)->subject('Trade opened');
                 }
             );
         } catch (\Exception $e) {
@@ -127,5 +145,41 @@ class ManualTradingController extends Controller
         }
 
         return redirect()->route('manual-trading.index')->with('success', 'Trade opened successfully.');
+    }
+
+    /**
+     * Offer pairs only when their underlying configured TradingAsset market is
+     * active and has a reference price. These are simulated/manual trades,
+     * not exchange order books; USD and USDT quotes use the existing USD
+     * reference price for their base asset.
+     */
+    private function availableInstruments(): array
+    {
+        $configuredBases = TradingAsset::where('type', 'crypto')
+            ->where('is_active', true)
+            ->where('status', 'active')
+            ->where('current_price', '>', 0)
+            ->pluck('symbol')
+            ->map(function ($symbol) {
+                return strtoupper((string) $symbol);
+            })
+            ->all();
+
+        $cryptoPairs = [];
+        foreach ($this->cryptoBases as $base) {
+            if (!in_array($base, $configuredBases, true)) {
+                continue;
+            }
+
+            foreach ($this->quotes as $quote) {
+                $cryptoPairs[] = $base . '/' . $quote;
+            }
+        }
+
+        return [
+            'crypto' => $cryptoPairs,
+            'forex' => $this->nonCryptoInstruments['forex'],
+            'indices' => $this->nonCryptoInstruments['indices'],
+        ];
     }
 }

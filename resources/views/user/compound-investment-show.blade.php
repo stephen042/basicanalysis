@@ -36,7 +36,8 @@
                 <span class="rounded-full bg-blue-500/10 px-3 py-1.5 text-xs font-bold text-blue-300">Payment: {{ $paymentLabel }}</span>
             </div>
         </div>
-        <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="rounded-lg bg-dark-100 p-4"><p class="text-xs uppercase text-gray-500">Payment method</p><p class="mt-1 text-lg font-semibold text-white">{{ $investment->payment_method ?: '—' }}</p></div>
             <div class="rounded-lg bg-dark-100 p-4"><p class="text-xs uppercase text-gray-500">Monthly return</p><p class="mt-1 text-lg font-semibold text-white">{{ number_format($investment->monthly_return, 2) }}%</p></div>
             <div class="rounded-lg bg-dark-100 p-4"><p class="text-xs uppercase text-gray-500">Performance rate</p><p class="mt-1 text-lg font-semibold text-white">{{ number_format($investment->performance_rate, 2) }}%</p></div>
             <div class="rounded-lg bg-dark-100 p-4"><p class="text-xs uppercase text-gray-500">Duration</p><p class="mt-1 text-lg font-semibold text-white">{{ $investment->duration_months }} months</p></div>

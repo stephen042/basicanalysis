@@ -285,11 +285,11 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center py-2 border-b border-dark-100">
                         <span class="text-gray-400">Min Copy Amount</span>
-                        <span class="text-white font-semibold">${{ number_format($expertTrader->min_copy_amount) }}</span>
+                        <span class="text-white font-semibold">${{ number_format((float) $expertTrader->min_copy_amount, 2) }}</span>
                     </div>
                     <div class="flex justify-between items-center py-2 border-b border-dark-100">
                         <span class="text-gray-400">Max Copy Amount</span>
-                        <span class="text-white font-semibold">${{ number_format($expertTrader->max_copy_amount) }}</span>
+                        <span class="text-white font-semibold">${{ number_format((float) $expertTrader->max_copy_amount, 2) }}</span>
                     </div>
 
                 </div>
@@ -364,7 +364,7 @@
                        placeholder="Enter amount to copy"
                        class="w-full px-4 py-3 bg-dark-400 border border-dark-100 rounded-lg text-white placeholder-gray-500 focus:border-primary focus:outline-none"
                        required>
-                <p class="text-xs text-gray-400 mt-1">Min: ${{ number_format($expertTrader->min_copy_amount) }} | Max: ${{ number_format($expertTrader->max_copy_amount) }}</p>
+                 <p class="text-xs text-gray-400 mt-1">Min: ${{ number_format((float) $expertTrader->min_copy_amount, 2) }} | Max: ${{ number_format((float) $expertTrader->max_copy_amount, 2) }}</p>
             </div>
 
             <div>

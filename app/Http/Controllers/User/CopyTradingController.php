@@ -72,7 +72,7 @@ class CopyTradingController extends Controller
     {
         $request->validate([
             'expert_trader_id' => 'required|exists:expert_traders,id',
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:0.01|max:1000000000',
             'copy_percentage' => 'required|numeric|min:10|max:100',
             'duration_days' => 'required|integer|in:1,2,3,4,5,6,7,14,30,60,90'
         ]);
@@ -81,8 +81,12 @@ class CopyTradingController extends Controller
         $user = Auth::user();
 
         // Validate amount limits
-        if ($request->amount < $expertTrader->min_copy_amount || $request->amount > $expertTrader->max_copy_amount) {
-            return back()->with('error', 'Amount must be between $' . number_format($expertTrader->min_copy_amount) . ' and $' . number_format($expertTrader->max_copy_amount));
+        if ((float) $request->amount < (float) $expertTrader->min_copy_amount
+            || (float) $request->amount > (float) $expertTrader->max_copy_amount) {
+            return back()->with('error', 'Amount must be between $'
+                . number_format((float) $expertTrader->min_copy_amount, 2)
+                . ' and $'
+                . number_format((float) $expertTrader->max_copy_amount, 2));
         }
 
         // Check if user has sufficient balance

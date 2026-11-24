@@ -63,54 +63,67 @@
                 @else
                     {{-- Other Payment Methods --}}
                     @php
-                        $isCrypto = in_array($payment_mode->name, ['Bitcoin', 'Litecoin', 'Ethereum', 'USDT', 'BUSD']);
+                        $isCrypto = strtolower(trim((string) $payment_mode->methodtype)) !== 'currency';
+                        $coinPaymentCodes = [
+                            'Bitcoin' => 'BTC',
+                            'Litecoin' => 'LTC',
+                            'Ethereum' => 'ETH',
+                            'BUSD' => 'BUSD',
+                        ];
+                        $coin = $coinPaymentCodes[$payment_mode->name] ?? null;
+                        if (strtoupper(trim((string) $payment_mode->name)) === 'USDT') {
+                            $networkCode = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $payment_mode->network));
+                            $networkCode = $networkCode ?: 'TRC20';
+                            // Keep the existing CoinPayments route only for
+                            // its configured TRC20 asset code. Other networks
+                            // continue through the admin-configured wallet.
+                            $coin = $networkCode === 'TRC20' ? 'USDT.TRC20' : null;
+                        }
                     @endphp
 
-                    @if ($settings->deposit_option != 'manual' && $isCrypto)
-                        {{-- Auto Crypto Gateways --}}
-                        @if ($payment_mode->name == 'USDT' && $settings->auto_merchant_option == 'Binance')
-                            <livewire:user.crypto-payment />
-                        @else
-                            @php
-                                if ($payment_mode->name == 'Bitcoin') { $coin = 'BTC'; }
-                                elseif ($payment_mode->name == 'Litecoin') { $coin = 'LTC'; }
-                                elseif ($payment_mode->name == 'Ethereum') { $coin = 'ETH'; }
-                                elseif ($payment_mode->name == 'BUSD') { $coin = 'BUSD'; }
-                                else { $coin = 'USDT.TRC20'; }
-                            @endphp
-                            <div class="text-center">
-                                <p class="mb-4 text-gray-300">Click the button below to proceed to the secure payment gateway.</p>
-                                <a href="{{ url('dashboard/cpay') }}/{{ $amount }}/{{ $coin }}/{{ Auth::user()->id }}/new" class="w-full px-6 py-3 font-medium text-white transition-colors bg-primary-600 rounded-md sm:w-auto hover:bg-primary-700">
-                                    Pay with CoinPayments
-                                </a>
-                            </div>
-                        @endif
-
-                    @elseif ($payment_mode->methodtype != 'currency' || ($isCrypto && $settings->deposit_option == 'manual'))
+                    @if ($settings->deposit_option != 'manual' && $isCrypto
+                        && strtoupper(trim((string) $payment_mode->name)) === 'USDT'
+                        && $settings->auto_merchant_option == 'Binance')
+                        <livewire:user.crypto-payment />
+                    @elseif ($settings->deposit_option != 'manual' && $isCrypto && $coin)
+                        <div class="text-center">
+                            <p class="mb-4 text-gray-300">Click below to proceed to the configured payment gateway for {{ $payment_mode->name }}.</p>
+                            <a href="{{ url('dashboard/cpay') }}/{{ $amount }}/{{ $coin }}/{{ Auth::user()->id }}/new" class="w-full px-6 py-3 font-medium text-white transition-colors bg-primary-600 rounded-md sm:w-auto hover:bg-primary-700">
+                                Pay with CoinPayments
+                            </a>
+                        </div>
+                    @elseif ($isCrypto)
                         {{-- Manual Crypto Payment --}}
                         <div class="space-y-6">
                             <div>
                                 <h3 class="text-lg font-semibold text-white">Manual Crypto Deposit</h3>
-                                <p class="mt-1 text-gray-400">Please send the exact amount to the wallet address below.</p>
+                                <p class="mt-1 text-gray-400">Send payment to the wallet configured for {{ $payment_mode->name }}. Verify the selected network before sending.</p>
                             </div>
 
-                            @if (!empty($payment_mode->wallet_address))
+                            @if ($paymentBarcode)
                                 <div class="flex justify-center">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ $payment_mode->wallet_address }}" alt="QR Code" class="w-48 h-48 border-4 rounded-lg border-primary-500">
+                                    <img src="{{ $paymentBarcode }}" alt="{{ $payment_mode->name }} payment QR code" class="max-h-56 max-w-full border-4 rounded-lg border-primary-500">
+                                </div>
+                            @elseif (!empty($paymentAddress))
+                                <div class="flex justify-center">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode($paymentAddress) }}" alt="QR Code" class="w-48 h-48 border-4 rounded-lg border-primary-500">
                                 </div>
                             @endif
 
                             <div>
-                                <label class="text-sm text-gray-400">{{ $payment_mode->name }} Address</label>
+                                <label class="text-sm text-gray-400">{{ $payment_mode->name }} Wallet Address</label>
                                 <div class="relative mt-1">
-                                    <input type="text" class="w-full px-4 py-3 pr-12 text-white bg-dark-100 rounded-md" value="{{$payment_mode->wallet_address}}" readonly>
-                                    <button @click="navigator.clipboard.writeText('{{ $payment_mode->wallet_address}}'); copied = true; setTimeout(() => copied = false, 2000)" class="absolute top-0 bottom-0 right-0 px-4 text-gray-400 hover:text-white">
+                                    <input type="text" class="w-full px-4 py-3 pr-12 text-white bg-dark-100 rounded-md" value="{{ $paymentAddress }}" readonly>
+                                    <button @click="navigator.clipboard.writeText(@json($paymentAddress)); copied = true; setTimeout(() => copied = false, 2000)" class="absolute top-0 bottom-0 right-0 px-4 text-gray-400 hover:text-white">
                                         <span x-show="!copied"><i class="fas fa-copy"></i></span>
                                         <span x-show="copied" class="text-primary-400"><i class="fas fa-check"></i></span>
                                     </button>
                                 </div>
                                 @if($payment_mode->network)
                                 <p class="mt-1 text-xs text-gray-500">Network: <span class="font-semibold">{{ $payment_mode->network }}</span></p>
+                                @endif
+                                @if($payment_mode->duration)
+                                    <p class="mt-2 whitespace-pre-line text-sm text-gray-300">{{ $payment_mode->duration }}</p>
                                 @endif
                             </div>
 
@@ -121,7 +134,7 @@
                                 <p class="mt-1 mb-4 text-sm text-gray-400">After making the payment, upload a screenshot of the transaction.</p>
                                 <input type="file" name="proof" class="w-full text-sm text-gray-300 border rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700 border-dark-100" required>
                                 <input type="hidden" name="amount" value="{{ $amount }}">
-                                <input type="hidden" name="paymethd_method" value="{{ $payment_mode->name }}">
+                                <input type="hidden" name="payment_method_id" value="{{ $payment_mode->id }}">
                                 <button type="submit" class="w-full px-6 py-3 mt-4 font-medium text-white transition-colors bg-primary-600 rounded-md hover:bg-primary-700">
                                     Submit Proof
                                 </button>
@@ -229,10 +242,42 @@
                                     <p class="mt-1 mb-4 text-sm text-gray-400">After making the payment, upload a screenshot of the transaction.</p>
                                     <input type="file" name="proof" class="w-full text-sm text-gray-300 border rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700 border-dark-100" required>
                                     <input type="hidden" name="amount" value="{{ $amount }}">
-                                    <input type="hidden" name="paymethd_method" value="{{ $payment_mode->name }}">
+                                    <input type="hidden" name="payment_method_id" value="{{ $payment_mode->id }}">
                                     <button type="submit" class="w-full px-6 py-3 mt-4 font-medium text-white transition-colors bg-primary-600 rounded-md hover:bg-primary-700">
                                         Submit Proof
                                     </button>
+                                </form>
+                            </div>
+                        @else
+                            <div class="space-y-6">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-white">{{ $payment_mode->name }} Details</h3>
+                                    <p class="mt-1 text-gray-400">Use the payment details configured for this method, then submit your receipt for review.</p>
+                                </div>
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    @if($payment_mode->bankname)
+                                        <div class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">Bank</p><p class="mt-1 text-white">{{ $payment_mode->bankname }}</p></div>
+                                    @endif
+                                    @if($payment_mode->account_name)
+                                        <div class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">Account name</p><p class="mt-1 text-white">{{ $payment_mode->account_name }}</p></div>
+                                    @endif
+                                    @if($payment_mode->account_number)
+                                        <div class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">Account number</p><p class="mt-1 break-all text-white">{{ $payment_mode->account_number }}</p></div>
+                                    @endif
+                                    @if($payment_mode->swift_code)
+                                        <div class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">SWIFT / code</p><p class="mt-1 text-white">{{ $payment_mode->swift_code }}</p></div>
+                                    @endif
+                                </div>
+                                @if($payment_mode->duration)
+                                    <p class="whitespace-pre-line rounded-lg bg-dark-100 p-4 text-sm leading-6 text-gray-300">{{ $payment_mode->duration }}</p>
+                                @endif
+                                <form method="post" action="{{ route('savedeposit') }}" enctype="multipart/form-data" class="border-t border-dark-100 pt-6">
+                                    @csrf
+                                    <label class="font-semibold text-white" for="fiat-payment-proof">Upload Proof of Payment</label>
+                                    <input id="fiat-payment-proof" type="file" name="proof" accept="image/*" required class="mt-3 w-full text-sm text-gray-300 file:mr-4 file:rounded-md file:border-0 file:bg-primary-600 file:px-4 file:py-2 file:font-semibold file:text-white">
+                                    <input type="hidden" name="amount" value="{{ $amount }}">
+                                    <input type="hidden" name="payment_method_id" value="{{ $payment_mode->id }}">
+                                    <button type="submit" class="mt-4 w-full rounded-md bg-primary-600 px-6 py-3 font-medium text-white transition-colors hover:bg-primary-700">Submit Proof</button>
                                 </form>
                             </div>
                         @endif
