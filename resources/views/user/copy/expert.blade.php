@@ -38,7 +38,7 @@
                         </span> -->
                         <span class="px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-sm">
                             <i class="fas fa-users mr-1"></i>
-                            {{ number_format($expertTrader->getActiveSubscribersCount()) }} Followers
+                            {{ number_format($expertTrader->total_followers) }} Followers
                         </span>
                     </div>
                 </div>

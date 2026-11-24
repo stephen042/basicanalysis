@@ -306,6 +306,14 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(SignalTransaction::class);
     }
 
+    /**
+     * Copy-trading subscriptions owned by this user.
+     */
+    public function copySubscriptions()
+    {
+        return $this->hasMany(CopySubscription::class, 'user_id', 'id');
+    }
+
     // Helper to check if user has an active signal
     public function hasActiveSignalFor($signalId)
     {

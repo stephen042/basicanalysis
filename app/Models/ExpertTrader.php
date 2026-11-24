@@ -53,7 +53,7 @@ class ExpertTrader extends Model
 
     public function copySubscriptions()
     {
-        return $this->hasMany(CopySubscription::class);
+        return $this->hasMany(CopySubscription::class, 'expert_trader_id', 'id');
     }
 
     public function performanceHistory()
@@ -196,18 +196,13 @@ class ExpertTrader extends Model
 
     public function getActiveSubscribersCount()
     {
-        $activeCount = $this->copySubscriptions()
-            ->where('status', 'active')
-            ->count();
-        
-        // Add the base total_followers set by admin
-        return $activeCount + ($this->total_followers ?? 0);
+        return $this->copySubscriptions()->active()->count();
     }
 
     public function getTotalCopiedAmount()
     {
         return $this->copySubscriptions()
-            ->where('status', 'active')
+            ->active()
             ->sum('amount');
     }
 }

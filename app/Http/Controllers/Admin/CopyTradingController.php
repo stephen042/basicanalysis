@@ -57,7 +57,7 @@ class CopyTradingController extends Controller
         
         $experts = ExpertTrader::with(['copySubscriptions', 'expertTrades'])
             ->withCount(['copySubscriptions as active_subscribers' => function($query) {
-                $query->where('status', 'active');
+                $query->active();
             }])
             ->orderBy('created_at', 'desc')
             ->paginate(20);
@@ -210,7 +210,7 @@ class CopyTradingController extends Controller
         // Top performing experts
         $topExperts = ExpertTrader::select('expert_traders.*')
             ->selectRaw('(SELECT SUM(pnl) FROM copy_trades ct JOIN copy_subscriptions cs ON ct.copy_subscription_id = cs.id WHERE cs.expert_trader_id = expert_traders.id) as total_pnl')
-            ->selectRaw('(SELECT COUNT(*) FROM copy_subscriptions WHERE expert_trader_id = expert_traders.id AND status = "active") as active_subscribers')
+            ->selectRaw('(SELECT COUNT(*) FROM copy_subscriptions WHERE expert_trader_id = expert_traders.id AND status = "active" AND expires_at > NOW()) as active_subscribers')
             ->orderByDesc('total_pnl')
             ->limit(10)
             ->get();
@@ -299,7 +299,7 @@ class CopyTradingController extends Controller
         if ($credited === 0) {
             return back()->with(
                 'message',
-                "No active subscribers found for this expert, so no credit was applied. The {$displayAmount} {$type} entry was recorded but not distributed."
+                "No eligible active subscribers found for this expert, so no credit was applied. Paused, expired, completed, and cancelled subscriptions are not eligible. The {$displayAmount} {$type} entry was recorded but not distributed."
             );
         }
 
@@ -322,7 +322,7 @@ class CopyTradingController extends Controller
      */
     private function processCopyTradesForManualTrade(ExpertTrader $expert, ExpertTrade $expertTrade, float $signedAmount): int
     {
-        $activeSubscriptions = CopySubscription::where('expert_trader_id', $expert->id)
+        $activeSubscriptions = $expert->copySubscriptions()
             ->active()
             ->with('user')
             ->lockForUpdate()

@@ -187,6 +187,60 @@
         </div>
     @endif
 
+    <!-- Keep paused and past relationships visible without treating them as active copies. -->
+    @if($otherSubscriptions->count() > 0)
+        <div class="bg-dark-200 rounded-xl p-6 border border-dark-100">
+            <h2 class="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+                <i class="fas fa-history text-yellow-400"></i>
+                Paused and Past Copy Trading
+            </h2>
+            <p class="text-sm text-gray-400 mb-5">
+                These records are kept for your reference. Only active, unexpired subscriptions receive copied trades.
+            </p>
+            <div class="space-y-3">
+                @foreach($otherSubscriptions as $subscription)
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-dark-300 rounded-lg p-4 border border-dark-100">
+                        <div class="flex items-center gap-3">
+                            <img src="{{ $subscription->expertTrader?->avatar ?? asset('dash/default-avatar.png') }}"
+                                 alt="{{ $subscription->expertTrader?->name ?? 'Unavailable trader' }}"
+                                 class="w-10 h-10 rounded-full">
+                            <div>
+                                <div class="font-semibold text-white">
+                                    {{ $subscription->expertTrader?->name ?? 'Trader record unavailable' }}
+                                </div>
+                                <div class="text-sm text-gray-400">
+                                    ${{ number_format($subscription->amount, 2) }}
+                                    <span class="mx-1">·</span>
+                                    {{ $subscription->getStatusText() }}
+                                    @if($subscription->expires_at)
+                                        <span class="mx-1">·</span>
+                                        Ends {{ $subscription->expires_at->format('M d, Y') }}
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            @if($subscription->expertTrader)
+                                <a href="{{ route('copy-trading.details', $subscription->id) }}"
+                                   class="px-3 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20">
+                                    Details
+                                </a>
+                            @endif
+                            @if($subscription->status === 'paused' && $subscription->expires_at && $subscription->expires_at->isFuture())
+                                <form action="{{ route('copy-trading.resume', $subscription->id) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="px-3 py-2 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-500/20">
+                                        Resume
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <!-- Expert Traders -->
     <div class="bg-dark-200 rounded-xl p-6 border border-dark-100">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -251,7 +305,7 @@
                         </div>
                         <div class="bg-dark-400 rounded-lg p-3">
                             <div class="text-sm text-gray-400">Followers</div>
-                            <div class="text-lg font-semibold text-white">{{ number_format($expert->getActiveSubscribersCount()) }}</div>
+                            <div class="text-lg font-semibold text-white">{{ number_format($expert->total_followers) }}</div>
                         </div>
                         <div class="bg-dark-400 rounded-lg p-3">
                             <div class="text-sm text-gray-400">Portfolio</div>
@@ -283,10 +337,16 @@
                     <!-- Action Buttons -->
                     <div class="space-y-2">
                         @php
-                            $userSubscription = $activeSubscriptions->firstWhere('expert_trader_id', $expert->id);
+                            $userSubscription = $activeSubscriptions->firstWhere('expert_trader_id', $expert->id)
+                                ?? $otherSubscriptions->first(function ($subscription) use ($expert) {
+                                    return $subscription->expert_trader_id == $expert->id
+                                        && $subscription->status === 'paused'
+                                        && $subscription->expires_at
+                                        && $subscription->expires_at->isFuture();
+                                });
                         @endphp
                         
-                        @if($userSubscription)
+                        @if($userSubscription && $userSubscription->status === 'active')
                             <a href="{{ route('copy-trading.details', $userSubscription->id) }}" class="w-full bg-yellow-500/10 border border-yellow-500/20 hover:bg-yellow-500/20 text-yellow-400 font-semibold py-3 px-4 rounded-lg transition-colors duration-200 text-center block">
                                 <i class="fas fa-check-circle mr-2"></i>
                                 Already Copying
@@ -296,6 +356,18 @@
                                 <button type="submit" class="w-full bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors duration-200">
                                     <i class="fas fa-stop-circle mr-2"></i>
                                     Stop Copying
+                                </button>
+                            </form>
+                        @elseif($userSubscription && $userSubscription->status === 'paused')
+                            <a href="{{ route('copy-trading.details', $userSubscription->id) }}" class="w-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 font-semibold py-3 px-4 rounded-lg text-center block">
+                                <i class="fas fa-pause-circle mr-2"></i>
+                                Copying Paused
+                            </a>
+                            <form action="{{ route('copy-trading.resume', $userSubscription->id) }}" method="POST" class="w-full">
+                                @csrf
+                                <button type="submit" class="w-full bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 text-green-400 font-semibold py-2 px-4 rounded-lg transition-colors duration-200">
+                                    <i class="fas fa-play mr-2"></i>
+                                    Resume Copying
                                 </button>
                             </form>
                         @else

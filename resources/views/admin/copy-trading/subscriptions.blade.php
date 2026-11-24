@@ -78,17 +78,17 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                                     <td>
                                                         <div class="d-flex align-items-center">
                                                             <div class="mr-2">
-                                                                @if($subscription->expertTrader->avatar)
+                                                                @if($subscription->expertTrader?->avatar)
                                                                     <img src="{{ asset($subscription->expertTrader->avatar) }}" alt="{{ $subscription->expertTrader->name }}" class="rounded-circle" width="30" height="30">
                                                                 @else
                                                                     <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" style="width: 30px; height: 30px; font-size: 12px;">
-                                                                        {{ substr($subscription->expertTrader->name, 0, 1) }}
+                                                                        {{ substr($subscription->expertTrader?->name ?? '?', 0, 1) }}
                                                                     </div>
                                                                 @endif
                                                             </div>
                                                             <div>
-                                                                <strong>{{ $subscription->expertTrader->name }}</strong><br>
-                                                                <small class="text-muted">{{ $subscription->expertTrader->specialization }}</small>
+                                                                <strong>{{ $subscription->expertTrader?->name ?? 'Trader record unavailable (ID '.$subscription->expert_trader_id.')' }}</strong><br>
+                                                                <small class="text-muted">{{ $subscription->expertTrader?->specialization ?? 'Historical relationship' }}</small>
                                                             </div>
                                                         </div>
                                                     </td>

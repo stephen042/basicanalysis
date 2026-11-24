@@ -37,17 +37,17 @@ class CopySubscription extends Model
     // Relationships
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
     public function expertTrader()
     {
-        return $this->belongsTo(ExpertTrader::class);
+        return $this->belongsTo(ExpertTrader::class, 'expert_trader_id', 'id');
     }
 
     public function copyTrades()
     {
-        return $this->hasMany(CopyTrade::class);
+        return $this->hasMany(CopyTrade::class, 'copy_subscription_id', 'id');
     }
 
     // Scopes
@@ -125,12 +125,14 @@ class CopySubscription extends Model
     // Helper Methods
     public function isActive()
     {
-        return $this->status === 'active' && $this->expires_at > now();
+        return $this->status === 'active'
+            && $this->expires_at
+            && $this->expires_at > now();
     }
 
     public function isExpired()
     {
-        return $this->expires_at <= now();
+        return !$this->expires_at || $this->expires_at <= now();
     }
 
     public function getDaysRemaining()

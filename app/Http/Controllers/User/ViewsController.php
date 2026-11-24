@@ -95,8 +95,8 @@ class ViewsController extends Controller
             ->get();
 
         // Get active copy trading subscriptions
-        $activeCopySubscriptions = CopySubscription::where('user_id', Auth::user()->id)
-            ->where('status', 'active')
+        $activeCopySubscriptions = Auth::user()->copySubscriptions()
+            ->active()
             ->with('expertTrader')
             ->orderByDesc('id')
             ->get();

@@ -97,20 +97,20 @@
                         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                             <div class="flex items-center gap-4 flex-1">
                                 <div class="relative">
-                                    <img src="{{ $subscription->expertTrader->avatar ?? asset('dash/default-avatar.png') }}" 
-                                         alt="{{ $subscription->expertTrader->name }}" 
+                                    <img src="{{ $subscription->expertTrader?->avatar ?? asset('dash/default-avatar.png') }}"
+                                         alt="{{ $subscription->expertTrader?->name ?? 'Unavailable trader' }}"
                                          class="w-12 h-12 rounded-full">
-                                    @if($subscription->expertTrader->isOnline())
+                                    @if($subscription->expertTrader?->isOnline())
                                         <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-dark-200"></div>
                                     @endif
                                 </div>
                                 <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-2">
-                                        <h3 class="text-lg font-semibold text-white">{{ $subscription->expertTrader->name }}</h3>
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs {{ $subscription->getStatusColorClass() }} bg-{{ $subscription->status === 'active' ? 'green' : ($subscription->status === 'paused' ? 'yellow' : ($subscription->status === 'completed' ? 'blue' : 'gray')) }}-500/10">
-                                            @if($subscription->status === 'active')
+                                        <h3 class="text-lg font-semibold text-white">{{ $subscription->expertTrader?->name ?? 'Trader record unavailable' }}</h3>
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs {{ $subscription->getStatusColorClass() }} bg-{{ $subscription->isActive() ? 'green' : ($subscription->status === 'paused' ? 'yellow' : ($subscription->status === 'completed' ? 'blue' : 'gray')) }}-500/10">
+                                            @if($subscription->isActive())
                                                 <div class="w-2 h-2 bg-green-400 rounded-full mr-1 animate-pulse"></div>
-                                                Active
+                                                {{ $subscription->getStatusText() }}
                                             @elseif($subscription->status === 'paused')
                                                 <i class="fas fa-pause mr-1"></i>
                                                 Paused
@@ -119,7 +119,7 @@
                                                 Completed
                                             @else
                                                 <i class="fas fa-times mr-1"></i>
-                                                {{ ucfirst($subscription->status) }}
+                                                {{ $subscription->getStatusText() }}
                                             @endif
                                         </span>
                                     </div>
@@ -155,10 +155,12 @@
                                         <span>Started: {{ $subscription->started_at->format('M d, Y') }}</span>
                                         <span class="mx-2">•</span>
                                         <span>
-                                            @if($subscription->status === 'active')
+                                            @if($subscription->isActive())
                                                 Expires: {{ $subscription->expires_at->format('M d, Y') }} ({{ $subscription->getDaysRemaining() }} days left)
                                             @elseif($subscription->status === 'completed')
                                                 Completed: {{ $subscription->expires_at->format('M d, Y') }}
+                                            @elseif($subscription->status === 'active' && $subscription->expires_at)
+                                                Expired: {{ $subscription->expires_at->format('M d, Y') }}
                                             @else
                                                 {{ ucfirst($subscription->status) }}: {{ $subscription->updated_at->format('M d, Y') }}
                                             @endif
@@ -185,10 +187,12 @@
                             </div>
                             
                             <div class="flex gap-2">
-                                <a href="{{ route('copy-trading.details', $subscription->id) }}" class="px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors">
-                                    <i class="fas fa-info-circle mr-1"></i>
-                                    Details
-                                </a>
+                                @if($subscription->expertTrader)
+                                    <a href="{{ route('copy-trading.details', $subscription->id) }}" class="px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Details
+                                    </a>
+                                @endif
                                 
                                 @if($subscription->status === 'active')
                                     <form action="{{ route('copy-trading.pause', $subscription->id) }}" method="POST" class="inline">
@@ -198,7 +202,7 @@
                                             Pause
                                         </button>
                                     </form>
-                                @elseif($subscription->status === 'paused')
+                                @elseif($subscription->status === 'paused' && $subscription->expires_at && $subscription->expires_at->isFuture())
                                     <form action="{{ route('copy-trading.resume', $subscription->id) }}" method="POST" class="inline">
                                         @csrf
                                         <button type="submit" class="px-4 py-2 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-500/20 transition-colors">

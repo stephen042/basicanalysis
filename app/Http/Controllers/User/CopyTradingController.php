@@ -29,9 +29,21 @@ class CopyTradingController extends Controller
             ->get();
 
         // Get user's active subscriptions
-        $activeSubscriptions = CopySubscription::forUser($user->id)
+        $activeSubscriptions = $user->copySubscriptions()
             ->active()
             ->with(['expertTrader', 'copyTrades.tradingAsset', 'copyTrades.expertTrade'])
+            ->get();
+
+        // Keep paused and past records visible without treating them as
+        // eligible for new copied trades.
+        $otherSubscriptions = $user->copySubscriptions()
+            ->where(function ($query) {
+                $query->where('status', '!=', 'active')
+                    ->orWhereNull('expires_at')
+                    ->orWhere('expires_at', '<=', now());
+            })
+            ->with(['expertTrader', 'copyTrades'])
+            ->orderByDesc('created_at')
             ->get();
 
         // Calculate statistics
@@ -48,6 +60,7 @@ class CopyTradingController extends Controller
         return view('user.copy.index', compact(
             'expertTraders',
             'activeSubscriptions', 
+            'otherSubscriptions',
             'activeExperts',
             'totalCopiedAmount',
             'totalPnl',
@@ -78,9 +91,10 @@ class CopyTradingController extends Controller
         }
 
         // Check if user already has an active subscription to this expert
-        $existingSubscription = CopySubscription::where('user_id', $user->id)
+        $existingSubscription = $user->copySubscriptions()
             ->where('expert_trader_id', $expertTrader->id)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'paused'])
+            ->where('expires_at', '>', now())
             ->first();
 
         if ($existingSubscription) {
@@ -169,9 +183,10 @@ class CopyTradingController extends Controller
         ];
 
         // Check if user already follows this expert
-        $userSubscription = CopySubscription::where('user_id', Auth::id())
+        $userSubscription = Auth::user()->copySubscriptions()
             ->where('expert_trader_id', $id)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'paused'])
+            ->where('expires_at', '>', now())
             ->first();
 
         return view('user.copy.expert', compact(
@@ -255,7 +270,7 @@ class CopyTradingController extends Controller
             ->firstOrFail();
 
         // Check if subscription hasn't expired
-        if ($subscription->expires_at <= Carbon::now()) {
+        if (!$subscription->expires_at || $subscription->expires_at <= Carbon::now()) {
             return back()->with('error', 'Cannot resume expired subscription. Please create a new one.');
         }
 
