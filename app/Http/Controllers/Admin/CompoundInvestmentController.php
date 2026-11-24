@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CompoundInvestment;
 use App\Models\CompoundInvestmentTopup;
-use App\Models\Settings;
 use App\Models\Tp_Transaction;
 use App\Models\User;
 use App\Models\Wdmethod;
@@ -25,7 +24,7 @@ class CompoundInvestmentController extends Controller
             'investments' => CompoundInvestment::with(['user', 'topups'])
                 ->latest()
                 ->paginate(25),
-            'currency' => $this->investmentCurrency($investment),
+            'currency' => '$',
         ]);
     }
 
@@ -91,7 +90,7 @@ class CompoundInvestmentController extends Controller
                         : null;
                     if (!$this->isUsdtMethod($paymentMethod)
                         || !in_array($paymentMethod->type, ['deposit', 'both'], true)) {
-                        throw new \DomainException('Only compound investment payments submitted using USDT can be approved.');
+                        throw new \DomainException('Only payments made using an enabled USDT deposit method can be approved.');
                     }
                 }
 
@@ -180,7 +179,7 @@ class CompoundInvestmentController extends Controller
 
         $investment->load('topups');
         $user = User::findOrFail($userId);
-        $currency = $this->investmentCurrency($investment);
+        $currency = $this->investmentCurrency();
         $totalEarnings = (float) $investment->topups()->sum('amount');
         try {
             Mail::raw(
@@ -241,7 +240,7 @@ class CompoundInvestmentController extends Controller
 
         $investment->refresh()->load(['user', 'topups']);
         $user = $investment->user;
-        $currency = $this->investmentCurrency($investment);
+        $currency = $this->investmentCurrency();
         $totalEarnings = (float) $investment->topups->sum('amount');
         try {
             Mail::raw(
@@ -287,11 +286,9 @@ class CompoundInvestmentController extends Controller
         return $method && strtoupper(trim((string) $method->name)) === 'USDT';
     }
 
-    private function investmentCurrency(CompoundInvestment $investment): string
+    private function investmentCurrency(): string
     {
-        return in_array(strtoupper(trim((string) $investment->payment_method)), ['USDT', 'SUBSCRIPTION BALANCE'], true)
-            ? 'USDT '
-            : (optional(Settings::find(1))->currency ?: '$');
+        return '$';
     }
 
     private function tableExists($table)

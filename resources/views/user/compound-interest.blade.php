@@ -81,7 +81,7 @@
                 <div class="rounded-2xl border border-dark-100 bg-dark-100 p-3.5 min-w-0 focus-within:border-primary transition-colors">
                     <label for="f-start" class="block text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Starting amount</label>
                     <div class="flex items-baseline gap-1 mt-1.5">
-                        <span class="text-gray-400 text-lg font-bold shrink-0">{{ $settings->currency ?? '$' }}</span>
+                        <span class="text-gray-400 text-lg font-bold shrink-0">$</span>
                         <input id="f-start" type="text" inputmode="decimal" value="5000"
                             class="w-full bg-transparent text-2xl font-black tabular-nums text-white outline-none focus:text-primary">
                     </div>
@@ -122,7 +122,7 @@
                 <div class="rounded-2xl border border-dark-100 bg-dark-100 p-3.5 min-w-0 focus-within:border-primary transition-colors">
                     <label for="f-contribution" class="block text-[10px] uppercase tracking-widest text-gray-400 font-semibold" id="contribution-label">Adding each month</label>
                     <div class="flex items-baseline gap-1 mt-1.5">
-                        <span class="text-gray-400 text-lg font-bold shrink-0">{{ $settings->currency ?? '$' }}</span>
+                        <span class="text-gray-400 text-lg font-bold shrink-0">$</span>
                         <input id="f-contribution" type="text" inputmode="decimal" value="0"
                             class="w-full bg-transparent text-2xl font-black tabular-nums text-white outline-none focus:text-primary">
                     </div>
@@ -347,7 +347,7 @@
             'use strict';
 
             var engine = window.CompoundEngine;
-            var CURRENCY = @json($settings->currency ?? '$');
+            var CURRENCY = '$';
 
             // Default scenario (matches the reference calculator example).
             var state = {

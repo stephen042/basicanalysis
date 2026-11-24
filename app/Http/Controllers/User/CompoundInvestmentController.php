@@ -4,7 +4,6 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompoundInvestment;
-use App\Models\Settings;
 use App\Models\Tp_Transaction;
 use App\Models\Wdmethod;
 use Illuminate\Http\Request;
@@ -25,7 +24,7 @@ class CompoundInvestmentController extends Controller
             'title' => 'Start Compounding',
             'methods' => $methods,
             'performanceRate' => (float) (Auth::user()->trading_profit_rate ?: 0),
-            'currency' => 'USDT ',
+            'currency' => '$',
             'subscriptionBalance' => (float) Auth::user()->account_bal,
             'subscriptionBalanceCurrency' => Auth::user()->currency ?: '$',
         ]);
@@ -189,9 +188,7 @@ class CompoundInvestmentController extends Controller
             'investment' => $investment,
             'paymentMethods' => $paymentMethods,
             'selectedMethodId' => $selectedMethodId,
-            'currency' => $legacyUnsupportedProof
-                ? (optional(Settings::find(1))->currency ?: '$')
-                : 'USDT ',
+            'currency' => '$',
             'legacyUnsupportedProof' => $legacyUnsupportedProof,
         ]);
     }
@@ -254,7 +251,7 @@ class CompoundInvestmentController extends Controller
         return view('user.compound-investment-show', [
             'title' => 'Compound Investment',
             'investment' => $investment,
-            'currency' => $this->investmentCurrency($investment),
+            'currency' => $this->investmentCurrency(),
         ]);
     }
 
@@ -266,7 +263,7 @@ class CompoundInvestmentController extends Controller
                 ->with('topups')
                 ->latest()
                 ->paginate(15),
-            'currency' => optional(Settings::find(1))->currency ?: '$',
+            'currency' => '$',
         ]);
     }
 
@@ -312,10 +309,8 @@ class CompoundInvestmentController extends Controller
         return $method && strtoupper(trim((string) $method->name)) === 'USDT';
     }
 
-    private function investmentCurrency(CompoundInvestment $investment): string
+    private function investmentCurrency(): string
     {
-        return in_array(strtoupper(trim((string) $investment->payment_method)), ['USDT', 'SUBSCRIPTION BALANCE'], true)
-            ? 'USDT '
-            : (optional(Settings::find(1))->currency ?: '$');
+        return '$';
     }
 }

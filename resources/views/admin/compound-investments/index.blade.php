@@ -19,11 +19,10 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
             <tbody>
             @forelse($investments as $investment)
                 <tr>
-                    @php $investmentCurrency = in_array(strtoupper(trim((string) $investment->payment_method)), ['USDT', 'SUBSCRIPTION BALANCE'], true) ? 'USDT ' : $currency; @endphp
                     <td>{{ $investment->user->name }}<small class="d-block text-muted">{{ $investment->user->email }}</small></td>
-                    <td>{{ $investmentCurrency }}{{ number_format($investment->amount,2) }}</td>
+                    <td>{{ $currency }}{{ number_format($investment->amount,2) }}</td>
                     <td>{{ $investment->created_at->format('M j, Y H:i') }}</td>
-                    <td>{{ ucfirst($investment->recurring_frequency) }}<small class="d-block text-muted">{{ $investmentCurrency }}{{ number_format($investment->recurring_amount,2) }}</small></td>
+                    <td>{{ ucfirst($investment->recurring_frequency) }}<small class="d-block text-muted">{{ $currency }}{{ number_format($investment->recurring_amount,2) }}</small></td>
                     <td>
                         <span class="badge badge-{{ $investment->deposit_status === 'approved' ? 'success' : ($investment->deposit_status === 'rejected' ? 'danger' : ($investment->payment_proof ? 'info' : 'warning')) }}">
                             {{ $investment->deposit_status === 'approved' ? 'Approved' : ($investment->deposit_status === 'rejected' ? 'Rejected' : ($investment->payment_proof ? 'Receipt submitted' : 'Pending payment')) }}

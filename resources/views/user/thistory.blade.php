@@ -55,12 +55,16 @@
                         </thead>
                         <tbody class="divide-y bg-dark-200 divide-dark-300">
                             @forelse ($t_history as $history)
+                                @php
+                                    $isCompoundInvestmentTopup = strpos(strtolower((string) $history->plan), 'compound investment top-up #') === 0;
+                                    $transactionCurrency = $isCompoundInvestmentTopup ? '$' : $settings->currency;
+                                @endphp
                                 <tr class="hover:bg-dark-100">
                                     <td class="px-6 py-4 text-sm text-white whitespace-nowrap">
                                         {{ $history->plan }}
                                     </td>
                                     <td class="px-6 py-4 text-sm text-white whitespace-nowrap">
-                                        {{ $settings->currency }}{{ number_format($history->amount, 2, '.', ',') }}
+                                        {{ $transactionCurrency }}{{ number_format($history->amount, 2, '.', ',') }}
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-300 whitespace-nowrap">
                                         @if ($history->type == 'ROI')

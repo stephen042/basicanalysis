@@ -127,8 +127,13 @@
                         </thead>
                         <tbody class="divide-y bg-dark-200 divide-dark-300">
                             @forelse ($t_history as $history)
+                                @php
+                                    $isCompoundInvestmentTransaction = $history->type === 'Compound Investment'
+                                        || ($history->type === 'ROI' && strpos(strtolower((string) $history->plan), 'compound investment top-up #') === 0);
+                                    $transactionCurrency = $isCompoundInvestmentTransaction ? '$' : Auth::user()->currency;
+                                @endphp
                                 <tr class="hover:bg-dark-100">
-                                    <td class="px-6 py-4 whitespace-nowrap text-white">{{ Auth::user()->currency }}{{ number_format($history->amount) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-white">{{ $transactionCurrency }}{{ number_format($history->amount) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-gray-300">{{ $history->type }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-gray-300">{{ $history->plan }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-gray-400">{{ \Carbon\Carbon::parse($history->created_at)->toDayDateTimeString() }}</td>

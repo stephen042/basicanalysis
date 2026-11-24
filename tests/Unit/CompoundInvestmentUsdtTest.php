@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\CompoundInvestment;
 use App\Models\User;
 use App\Http\Controllers\Admin\CompoundInvestmentController;
+use App\Http\Controllers\User\CompoundInvestmentController as UserCompoundInvestmentController;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -140,6 +141,17 @@ class CompoundInvestmentUsdtTest extends TestCase
         $this->assertSame('USDT', $investment->payment_method);
         $this->assertSame((int) $this->usdtMethodId, (int) $investment->payment_method_id);
         $this->assertSame('250.00', $investment->amount);
+    }
+
+    public function test_investment_form_uses_usd_while_usdt_remains_a_separate_payment_method(): void
+    {
+        $user = User::create(['name' => 'Investor', 'email' => 'investor@example.test']);
+        $this->actingAs($user);
+
+        $view = (new UserCompoundInvestmentController())->create();
+
+        $this->assertSame('$', $view->getData()['currency']);
+        $this->assertSame('USDT', $view->getData()['methods']->first()->name);
     }
 
     public function test_admin_cannot_approve_a_non_usdt_compound_receipt(): void

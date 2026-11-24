@@ -5,7 +5,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-bold text-white">Start Compounding</h1>
-            <p class="mt-1 text-sm text-gray-400">Build a scenario, submit your investment request in USDT, then complete payment for admin review.</p>
+            <p class="mt-1 text-sm text-gray-400">Build a scenario and submit your investment request in USD. Choose a payment method separately.</p>
         </div>
         <div class="flex gap-2">
             <a href="{{ route('compound-investment.history') }}" class="rounded-lg border border-dark-100 px-4 py-2 text-sm text-gray-200">Investment history</a>
@@ -21,8 +21,9 @@
             <p class="text-sm text-gray-400">The monthly return and performance rate are read-only. Projection is illustrative only.</p>
         </div>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Starting amount (USDT)
-                <input id="ci-start" type="number" min="1" step="0.01" value="{{ old('amount', 1000) }}" class="mt-2 w-full bg-transparent text-2xl font-bold text-white">
+            <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Starting amount (USD)
+                <input id="ci-start" type="number" min="1" max="1000000000" step="0.01" value="{{ old('amount', 1000) }}" class="mt-2 w-full bg-transparent text-2xl font-bold text-white">
+                <span class="mt-1 block normal-case tracking-normal text-gray-500">Minimum $1 · Maximum $1,000,000,000</span>
             </label>
             <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Monthly return
                 <input readonly value="27.8%" class="mt-2 w-full cursor-not-allowed bg-transparent text-2xl font-bold text-primary">
@@ -37,8 +38,9 @@
                     @endforeach
                 </select>
             </label>
-            <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Recurring top-up (USDT)
-                <input id="ci-recurring" type="number" min="0" step="0.01" value="{{ old('recurring_amount', 0) }}" class="mt-2 w-full bg-transparent text-2xl font-bold text-white">
+            <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Recurring top-up (USD)
+                <input id="ci-recurring" type="number" min="0" max="1000000000" step="0.01" value="{{ old('recurring_amount', 0) }}" class="mt-2 w-full bg-transparent text-2xl font-bold text-white">
+                <span class="mt-1 block normal-case tracking-normal text-gray-500">Maximum $1,000,000,000</span>
             </label>
             <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Frequency
                 <select id="ci-frequency" class="mt-2 w-full bg-transparent text-lg font-bold text-white">
@@ -66,7 +68,7 @@
     @endphp
     <section class="rounded-xl border border-dark-100 bg-dark-200 p-5 md:p-7">
         <h2 class="text-xl font-semibold text-white">Payment method</h2>
-        <p class="mt-1 text-sm text-gray-400">Pay from your dashboard Subscription Balance, or continue with the existing direct USDT deposit and admin approval process.</p>
+        <p class="mt-1 text-sm text-gray-400">Investments are denominated in USD. Pay from your Subscription Balance or select USDT for Direct Deposit.</p>
         <form method="POST" action="{{ route('compound-investment.store') }}"
             class="mt-5 space-y-5"
             x-data='{
@@ -102,10 +104,11 @@
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
-                <label class="text-sm text-gray-300">Initial investment amount (USDT)
-                    <input name="amount" id="ci-deposit-amount" type="number" min="1" step="0.01" required
+                <label class="text-sm text-gray-300">Initial investment amount (USD)
+                    <input name="amount" id="ci-deposit-amount" type="number" min="1" max="1000000000" step="0.01" required
                         value="{{ old('amount', 1000) }}" x-model.number="amount"
                         class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
+                    <span class="mt-1 block text-xs text-gray-500">Minimum $1 · Maximum $1,000,000,000</span>
                 </label>
                 <label class="text-sm text-gray-300">Investment duration
                     <select name="duration_months" id="ci-deposit-duration" class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
@@ -114,8 +117,9 @@
                         @endforeach
                     </select>
                 </label>
-                <label class="text-sm text-gray-300">Recurring top-up (USDT)
-                    <input name="recurring_amount" id="ci-deposit-recurring" type="number" min="0" step="0.01" value="{{ old('recurring_amount', 0) }}" class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
+                <label class="text-sm text-gray-300">Recurring top-up (USD)
+                    <input name="recurring_amount" id="ci-deposit-recurring" type="number" min="0" max="1000000000" step="0.01" value="{{ old('recurring_amount', 0) }}" class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
+                    <span class="mt-1 block text-xs text-gray-500">Maximum $1,000,000,000</span>
                 </label>
                 <label class="text-sm text-gray-300">Top-up frequency
                     <select name="recurring_frequency" id="ci-deposit-frequency" class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
@@ -141,7 +145,7 @@
             </div>
 
             <fieldset x-show="paymentSource === 'direct_deposit'" x-cloak>
-                <legend class="mb-2 text-sm font-semibold text-gray-200">Choose an enabled USDT payment configuration</legend>
+                <legend class="mb-2 text-sm font-semibold text-gray-200">Choose USDT as your Direct Deposit payment method</legend>
                 <input type="hidden" name="payment_method_id" :value="directDepositMethodId" :disabled="paymentSource !== 'direct_deposit'">
                 @if($methods->isEmpty())
                     <p class="rounded-lg bg-yellow-500/10 p-4 text-sm text-yellow-300">No enabled USDT direct-deposit method is configured. Choose Subscription Balance or contact support.</p>

@@ -22,16 +22,15 @@
                     @forelse($investments as $investment)
                         @php
                             $paymentLabel = $investment->deposit_status === 'approved' ? 'Approved' : ($investment->deposit_status === 'rejected' ? 'Rejected' : ($investment->payment_proof ? 'Awaiting review' : 'Pending payment'));
-                            $investmentCurrency = in_array(strtoupper(trim((string) $investment->payment_method)), ['USDT', 'SUBSCRIPTION BALANCE'], true) ? 'USDT ' : $currency;
                         @endphp
                         <tr class="hover:bg-dark-100/70">
                             <td class="whitespace-nowrap px-4 py-4 font-semibold text-white">#{{ $investment->id }}</td>
-                            <td class="whitespace-nowrap px-4 py-4">{{ $investmentCurrency }}{{ number_format($investment->amount, 2) }}<span class="mt-1 block text-xs text-gray-500">{{ $investment->created_at->format('M j, Y') }}</span></td>
+                            <td class="whitespace-nowrap px-4 py-4">{{ $currency }}{{ number_format($investment->amount, 2) }}<span class="mt-1 block text-xs text-gray-500">{{ $investment->created_at->format('M j, Y') }}</span></td>
                             <td class="whitespace-nowrap px-4 py-4">{{ $paymentLabel }}<span class="mt-1 block text-xs text-gray-500">{{ $investment->payment_method ?: '—' }}</span></td>
                             <td class="whitespace-nowrap px-4 py-4"><span class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold">{{ $investment->display_status }}</span></td>
-                            <td class="whitespace-nowrap px-4 py-4">{{ $investment->duration_months }} mo · {{ number_format($investment->monthly_return, 1) }}%<span class="mt-1 block text-xs text-gray-500">{{ $investmentCurrency }}{{ number_format($investment->recurring_amount,2) }} / {{ $investment->recurring_frequency }}</span></td>
+                            <td class="whitespace-nowrap px-4 py-4">{{ $investment->duration_months }} mo · {{ number_format($investment->monthly_return, 1) }}%<span class="mt-1 block text-xs text-gray-500">{{ $currency }}{{ number_format($investment->recurring_amount,2) }} / {{ $investment->recurring_frequency }}</span></td>
                             <td class="whitespace-nowrap px-4 py-4">{{ $investment->topups->count() }}</td>
-                            <td class="whitespace-nowrap px-4 py-4 text-green-300">{{ $investmentCurrency }}{{ number_format($investment->total_earnings, 2) }}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-green-300">{{ $currency }}{{ number_format($investment->total_earnings, 2) }}</td>
                             <td class="whitespace-nowrap px-4 py-4">{{ $investment->completed_at ? $investment->completed_at->format('M j, Y') : ($investment->expected_completion_at ? $investment->expected_completion_at->format('M j, Y') : '—') }}</td>
                             <td class="whitespace-nowrap px-4 py-4">
                                 <a href="{{ route('compound-investment.show', $investment) }}" class="font-semibold text-primary hover:underline">View</a>
