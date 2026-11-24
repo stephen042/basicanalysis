@@ -44,4 +44,8 @@ return [
     'telegram-bot-api' => [
         'token' => env('TELEGRAM_BOT_TOKEN', 'YOUR BOT TOKEN HERE')
     ],
+
+    'coingecko' => [
+        'api_key' => env('COINGECKO_API_KEY', ''),
+    ],
 ];

@@ -46,6 +46,7 @@ class PaymentController extends Controller
 
         $method = new Wdmethod();
         $method->name = $request['name'];
+        $method->currency = $request['currency'] ?? null;
         $method->minimum = $request['minimum'];
         $method->maximum = $request['maximum'];
         $method->charges_amount = $request['charges'];
@@ -106,6 +107,7 @@ class PaymentController extends Controller
 
         Wdmethod::where('id', $request->id)->update([
             'name' => $request['name'],
+            'currency' => $request['currency'] ?? null,
             'minimum' => $request['minimum'],
             'maximum' => $request['maximum'],
             'charges_amount' => $request['charges'],

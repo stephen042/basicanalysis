@@ -24,6 +24,12 @@
                                             <input type="text" class="form-control  " name="name" id="name"
                                                 placeholder="Payment method name" required>
                                         </div>
+                                        <div class="form-group col-md-6 currency">
+                                            <h6 class="">Currency Code</h6>
+                                            <input type="text" class="form-control  " name="currency" id="currency"
+                                                placeholder="e.g. USD, NGN, EUR, GBP">
+                                            <small class="">The fiat currency this method applies to (currency methods only).</small>
+                                        </div>
                                         <div class="form-group col-md-6">
                                             <h6 class="">Minimum Amount</h6>
                                             <input type="number" class="form-control  " name="minimum" id="minamount"
@@ -154,7 +160,11 @@
                 <tbody>
                     @foreach ($methods as $method)
                         <tr>
-                            <th>{{ $method->name }}</th>
+                            <th>{{ $method->name }}
+                                @if ($method->methodtype == 'currency')
+                                    <span class="badge badge-secondary">{{ $method->currency ?: $settings->s_currency }}</span>
+                                @endif
+                            </th>
                             <td>{{ $method->methodtype }}</td>
                             <td>{{ $method->type }}</td>
                             <td>

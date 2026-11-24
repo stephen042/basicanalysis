@@ -30,14 +30,60 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                     <div class="col-lg-8 offset-lg-2 card p-md-4 p-2  shadow">
                         @if($withdrawal->duser)
                         <div class="mb-3">
-                            @if ($withdrawal->status != 'Processed')
-                                <h4 class="">Send Funds to {{ $user->name }} through his payment details below</h4>
-                            @else
+                            @if ($withdrawal->status == 'Processed')
                                 <h4 class="text-success">Payment Completed</h4>
+                            @elseif ($withdrawal->status == 'Rejected')
+                                <h4 class="text-danger">Request Rejected</h4>
+                            @else
+                                <h4 class="">Send Funds to {{ $user->name }} through his payment details below</h4>
                             @endif
                         </div>
+                        @php
+                            $payDetails = null;
+                            if (!empty($withdrawal->paydetails)) {
+                                $decoded = json_decode($withdrawal->paydetails, true);
+                                if (is_array($decoded)) {
+                                    $payDetails = $decoded;
+                                }
+                            }
+                        @endphp
                         <div class="">
-                            @if ($method->defaultpay == 'yes')
+                            @if ($payDetails)
+                                @if (isset($payDetails['wallet_address']))
+                                    <div class="mb-3 form-group">
+                                        <h5 class="">{{ $withdrawal->payment_mode }} Wallet Address</h5>
+                                        <input type="text" class="form-control readonly  "
+                                            value="{{ $payDetails['wallet_address'] }}" readonly>
+                                        @if (!empty($payDetails['network']))
+                                            <small class="text-muted">Network: {{ $payDetails['network'] }}</small>
+                                        @endif
+                                    </div>
+                                @endif
+                                @if (isset($payDetails['bank_name']))
+                                    <div class="mb-3 form-group">
+                                        <h5 class="">Bank Name</h5>
+                                        <input type="text" class="form-control readonly  "
+                                            value="{{ $payDetails['bank_name'] }}" readonly>
+                                    </div>
+                                    <div class="mb-3 form-group">
+                                        <h5 class="">Account Name</h5>
+                                        <input type="text" class="form-control readonly  "
+                                            value="{{ $payDetails['account_name'] }}" readonly>
+                                    </div>
+                                    <div class="mb-3 form-group">
+                                        <h5 class="">Account Number</h5>
+                                        <input type="text" class="form-control readonly  "
+                                            value="{{ $payDetails['account_number'] }}" readonly>
+                                    </div>
+                                    @if (!empty($payDetails['swift_code']))
+                                        <div class="mb-3 form-group">
+                                            <h5 class="">Swift Code</h5>
+                                            <input type="text" class="form-control readonly  "
+                                                value="{{ $payDetails['swift_code'] }}" readonly>
+                                        </div>
+                                    @endif
+                                @endif
+                            @elseif ($method->defaultpay == 'yes')
                                 @if ($withdrawal->payment_mode == 'Bitcoin')
                                     <div class="mb-3 form-group">
                                         <h5 class="">BTC Address</h5>
@@ -105,7 +151,7 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                             @endif
                         </div>
 
-                        @if ($withdrawal->status != 'Processed')
+                        @if ($withdrawal->status == 'Pending')
                             <div class="mt-1">
                                 <form action="{{ route('pwithdrawal') }}" method="POST">
                                     @csrf

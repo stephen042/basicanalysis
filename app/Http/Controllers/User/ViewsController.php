@@ -318,15 +318,82 @@ class ViewsController extends Controller
     //Return withdrawals route
     public function withdrawals()
     {
-        $withdrawals =  Wdmethod::where(function ($query) {
+        $methods = Wdmethod::where(function ($query) {
             $query->where('type', '=', 'withdrawal')
                 ->orWhere('type', '=', 'both');
-        })->where('status', 'enabled')->orderByDesc('id')->get();
+        })->where('status', 'enabled')->orderBy('name')->orderBy('id')->get();
+
+        $settings = Settings::where('id', 1)->first();
+        $defaultCode = $settings->s_currency ?: 'USD';
+        $defaultSymbol = $settings->currency ?: '$';
+
+        // Crypto assets: distinct names, each with its configured networks/methods.
+        $cryptoAssets = [];
+        foreach ($methods as $method) {
+            if (strtolower(trim((string) $method->methodtype)) !== 'crypto') {
+                continue;
+            }
+            $cryptoAssets[$method->name][] = [
+                'id' => (int) $method->id,
+                'name' => $method->name,
+                'network' => $method->network,
+                'minimum' => $method->minimum,
+                'maximum' => $method->maximum,
+                'charges_amount' => $method->charges_amount,
+                'charges_type' => $method->charges_type,
+                'duration' => $method->duration,
+                'img_url' => $method->img_url,
+            ];
+        }
+
+        // Fiat currencies: default account currency first, then admin-configured codes.
+        $fiatCurrencies = [];
+        foreach ($methods as $method) {
+            if (strtolower(trim((string) $method->methodtype)) !== 'currency') {
+                continue;
+            }
+            $code = $method->currency ?: $defaultCode;
+            if (!isset($fiatCurrencies[$code])) {
+                $fiatCurrencies[$code] = [
+                    'code' => $code,
+                    'symbol' => $defaultSymbol,
+                    'methods' => [],
+                ];
+            }
+            $fiatCurrencies[$code]['methods'][] = [
+                'id' => (int) $method->id,
+                'name' => $method->name,
+                'minimum' => $method->minimum,
+                'maximum' => $method->maximum,
+                'charges_amount' => $method->charges_amount,
+                'charges_type' => $method->charges_type,
+                'duration' => $method->duration,
+                'img_url' => $method->img_url,
+            ];
+        }
+
+        if (!isset($fiatCurrencies[$defaultCode])) {
+            $fiatCurrencies[$defaultCode] = [
+                'code' => $defaultCode,
+                'symbol' => $defaultSymbol,
+                'methods' => [],
+            ];
+        }
+
+        // Keep the default currency first for a stable, predictable list.
+        $default = $fiatCurrencies[$defaultCode];
+        unset($fiatCurrencies[$defaultCode]);
+        $fiatCurrencies = array_values(array_merge([$default], array_values($fiatCurrencies)));
 
         return view('user.withdrawals')
             ->with(array(
                 'title' => 'Withdraw Your funds',
-                'wmethods' => $withdrawals,
+                'cryptoAssets' => $cryptoAssets,
+                'fiatCurrencies' => $fiatCurrencies,
+                'defaultCurrency' => [
+                    'code' => $defaultCode,
+                    'symbol' => $defaultSymbol,
+                ],
             ));
     }
 

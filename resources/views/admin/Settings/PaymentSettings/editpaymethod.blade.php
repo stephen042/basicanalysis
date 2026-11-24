@@ -62,6 +62,12 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                             this method already makes use of them.</small>
                                     @endif
                                 </div>
+                                <div class="form-group col-md-6 currency">
+                                    <h6 class="">Currency Code</h6>
+                                    <input type="text" value="{{ $method->currency }}" class="form-control  "
+                                        name="currency" placeholder="e.g. USD, NGN, EUR, GBP">
+                                    <small class="">The fiat currency this method applies to (currency methods only).</small>
+                                </div>
                                 <div class="form-group col-md-6">
                                     <h6 class="">Minimum Amount</h6>
                                     <input type="number" value="{{ $method->minimum }}" class="form-control  "

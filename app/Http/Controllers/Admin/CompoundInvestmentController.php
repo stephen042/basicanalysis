@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CompoundInvestment;
 use App\Models\CompoundInvestmentTopup;
+use App\Models\Settings;
 use App\Models\Tp_Transaction;
 use App\Models\User;
 use App\Models\Wdmethod;

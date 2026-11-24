@@ -10,6 +10,7 @@ use App\Models\User_plans;
 use App\Models\Wdmethod;
 use App\Models\Withdrawal;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Mail\NewNotification;
 use Illuminate\Support\Facades\Mail;
@@ -27,36 +28,56 @@ class WithdrawalController extends Controller
     {
         $this->notificationService = $notificationService;
     }
-    //
+
+    /**
+     * Receive the selected withdrawal method and advance to the details step.
+     */
     public function withdrawamount(Request $request)
     {
-        $request->session()->put('paymentmethod', $request->method);
-        $request->session()->put('withdrawal_step', 'initial'); // Reset to initial step
+        $request->validate([
+            'method_id' => 'required|integer',
+        ]);
+
+        $method = Wdmethod::find($request->method_id);
+
+        if (!$method
+            || strtolower(trim((string) $method->status)) !== 'enabled'
+            || !in_array($method->type, ['withdrawal', 'both'], true)) {
+            return redirect()->route('withdrawals')
+                ->with('message', 'The selected withdrawal method is not available.');
+        }
+
+        session()->put('withdraw_method_id', $method->id);
+        session()->put('withdrawal_step', 'initial');
+
         return redirect()->route('withdrawfunds');
     }
 
-    //Return withdrawals route
+    /**
+     * Render the withdrawal details form for the method selected in the session.
+     */
     public function withdrawfunds()
     {
-        $paymethod = session('paymentmethod');
-        $checkmethod =  Wdmethod::where('name', $paymethod)->first();
-        if ($checkmethod->defaultpay == "yes") {
-            $default = true;
-        } else {
-            $default = false;
+        $method = Wdmethod::find(session('withdraw_method_id'));
+
+        if (!$method) {
+            return redirect()->route('withdrawals')
+                ->with('message', 'Please select a withdrawal method.');
         }
 
-        if ($checkmethod->methodtype == "crypto") {
-            $methodtype = 'crypto';
-        } else {
-            $methodtype = 'currency';
+        if (strtolower(trim((string) $method->status)) !== 'enabled'
+            || !in_array($method->type, ['withdrawal', 'both'], true)) {
+            return redirect()->route('withdrawals')
+                ->with('message', 'The selected withdrawal method is no longer available.');
         }
+
+        $methodtype = strtolower(trim((string) $method->methodtype)) === 'crypto' ? 'crypto' : 'currency';
 
         return view('user.withdraw', [
             'title' => 'Complete Withdrawal Request',
-            'payment_mode' => $paymethod,
-            'default' => $default,
+            'method' => $method,
             'methodtype' => $methodtype,
+            'default' => $method->defaultpay === 'yes',
         ]);
     }
 
@@ -74,10 +95,9 @@ class WithdrawalController extends Controller
         Mail::bcc($user->email)->send(new NewNotification($message, $subject, $user->name));
 
         return redirect()->back()
-            ->with('success', 'Action Sucessful! OTP have been sent to your email');
+            ->with('success', 'Action Successful! OTP has been sent to your email');
     }
 
-    // Verify Withdrawal Code
     public function verifyWithdrawalCode(Request $request)
     {
         $request->validate([
@@ -86,27 +106,23 @@ class WithdrawalController extends Controller
         ]);
 
         $user = Auth::user();
-        
-        // Check if withdrawal code is enabled and matches
+
         if ($user->withdrawal_code_enabled && $user->withdrawal_code == $request->code) {
-            // Store method in session
-            $request->session()->put('paymentmethod', $request->method);
-            
-            // Check if tax code is also required
+            session()->put('paymentmethod', $request->method);
+
             if ($user->tax_code_enabled && !empty($user->tax_code)) {
-                $request->session()->put('withdrawal_step', 'withdrawal_verified');
+                session()->put('withdrawal_step', 'withdrawal_verified');
             } else {
-                $request->session()->put('withdrawal_step', 'tax_verified');
+                session()->put('withdrawal_step', 'tax_verified');
             }
-            
+
             return redirect()->route('withdrawfunds')->with('success', $user->withdrawal_code_name . ' verified successfully!');
         }
-        
+
         $codeName = $user->withdrawal_code_name ?? 'Withdrawal Code';
-        return redirect()->back()->with('message', "You have entered an incorrect {$codeName} . Please contact support for the correct code for this transaction. ");
+        return redirect()->back()->with('message', "You have entered an incorrect {$codeName} . Please contact support for the correct code for this transaction.");
     }
 
-    // Verify Tax Code
     public function verifyTaxCode(Request $request)
     {
         $request->validate([
@@ -115,178 +131,210 @@ class WithdrawalController extends Controller
         ]);
 
         $user = Auth::user();
-        
-        // Check if tax code is enabled and matches
+
         if ($user->tax_code_enabled && $user->tax_code == $request->code) {
-            // Store method in session
-            $request->session()->put('paymentmethod', $request->method);
-            $request->session()->put('withdrawal_step', 'tax_verified');
-            
+            session()->put('paymentmethod', $request->method);
+            session()->put('withdrawal_step', 'tax_verified');
+
             return redirect()->route('withdrawfunds')->with('success', $user->tax_code_name . ' verified successfully!');
         }
-        
+
         $codeName = $user->tax_code_name ?? 'Tax Code';
         return redirect()->back()->with('message', "You have entered an incorrect {$codeName} . Please contact support for the correct code for this transaction.");
     }
 
+    /**
+     * Process a withdrawal request.
+     *
+     * Every financial rule is enforced on the server: the selected method must
+     * exist, be enabled and support withdrawals, belong to the chosen
+     * asset/currency, honour min/max limits and fees, and never exceed the
+     * user's available balance. The balance is reserved inside a locked
+     * database transaction and duplicate submissions are rejected.
+     */
     public function completewithdrawal(Request $request)
     {
-
-        if (Auth::user()->sendotpemail == "Yes") {
-            if ($request->otpcode != Auth::user()->withdrawotp) {
-                return redirect()->back()->with('message', 'OTP is incorrect, please recheck the code');
-            }
-        }
-
+        $user = Auth::user();
         $settings = Settings::where('id', '1')->first();
-        if ($settings->enable_kyc == "yes") {
-            if (Auth::user()->account_verify != "Verified") {
-                return redirect()->back()->with('message', 'Your account must be verified before you can make withdrawal.');
-            }
+
+        if ($user->sendotpemail == "Yes" && $request->otpcode != $user->withdrawotp) {
+            return redirect()->back()->with('message', 'OTP is incorrect, please recheck the code');
         }
 
-        $method = Wdmethod::where('name', $request->method)->first();
-        if ($method->charges_type == 'percentage') {
-            $charges = $request['amount'] * $method->charges_amount / 100;
+        if ($settings->enable_kyc == "yes" && $user->account_verify != "Verified") {
+            return redirect()->back()->with('message', 'Your account must be verified before you can make a withdrawal.');
+        }
+
+        $validated = $request->validate([
+            'method_id' => 'required|integer',
+            'amount' => 'required|numeric|gt:0|max:1000000000',
+            'submission_key' => 'required|string|max:64',
+            'wallet_address' => 'nullable|string|max:512',
+            'bank_name' => 'nullable|string|max:255',
+            'account_name' => 'nullable|string|max:255',
+            'account_number' => 'nullable|string|max:255',
+            'swift_code' => 'nullable|string|max:255',
+        ]);
+
+        $method = Wdmethod::find($validated['method_id']);
+        if (!$method
+            || strtolower(trim((string) $method->status)) !== 'enabled'
+            || !in_array($method->type, ['withdrawal', 'both'], true)) {
+            return redirect()->back()->with('message', 'The selected withdrawal method is not available.');
+        }
+
+        $isCrypto = strtolower(trim((string) $method->methodtype)) === 'crypto';
+        $amount = round((float) $validated['amount'], 8);
+
+        // Calculate charges on the backend.
+        if (strtolower((string) $method->charges_type) === 'percentage') {
+            $charges = $amount * ((float) $method->charges_amount) / 100;
         } else {
-            $charges = $method->charges_amount;
+            $charges = (float) $method->charges_amount;
+        }
+        $charges = round($charges, 2);
+        $toWithdraw = round($amount + $charges, 2);
+
+        // Enforce minimum and maximum withdrawal limits.
+        if ($method->minimum !== null && $method->minimum !== '' && $amount < (float) $method->minimum) {
+            return redirect()->back()->with('message', "Sorry, the minimum amount you can withdraw is {$settings->currency}{$method->minimum}.");
+        }
+        if ($method->maximum !== null && $method->maximum !== '' && (float) $method->maximum > 0 && $amount > (float) $method->maximum) {
+            return redirect()->back()->with('message', "Sorry, the maximum amount you can withdraw is {$settings->currency}{$method->maximum}.");
         }
 
-        $to_withdraw = $request['amount'] + $charges;
-        //return if amount is lesser than method minimum withdrawal amount
-
-        if (Auth::user()->account_bal < $to_withdraw) {
-            return redirect()->back()
-                ->with('message', 'Sorry, your account balance is insufficient for this request.');
+        // Validate and collect destination details based on the method type.
+        if ($isCrypto) {
+            $walletAddress = trim((string) ($validated['wallet_address'] ?? ''));
+            if ($walletAddress === '') {
+                return redirect()->back()->with('message', 'Please enter your destination wallet address.');
+            }
+            $details = [
+                'wallet_address' => $walletAddress,
+                'network' => $method->network ?: null,
+            ];
+        } else {
+            $bankName = trim((string) ($validated['bank_name'] ?? ''));
+            $accountName = trim((string) ($validated['account_name'] ?? ''));
+            $accountNumber = trim((string) ($validated['account_number'] ?? ''));
+            if ($bankName === '' || $accountName === '' || $accountNumber === '') {
+                return redirect()->back()->with('message', 'Please provide your bank name, account name and account number.');
+            }
+            $details = [
+                'bank_name' => $bankName,
+                'account_name' => $accountName,
+                'account_number' => $accountNumber,
+                'swift_code' => trim((string) ($validated['swift_code'] ?? '')),
+            ];
         }
 
-        if ($request['amount'] < $method->minimum) {
-            return redirect()->back()
-                ->with("message", "Sorry, The minimum amount you can withdraw is $settings->currency$method->minimum, please try another payment method.");
+        $paydetails = json_encode($details);
+
+        // Auto payout via CoinPayments for supported crypto when enabled.
+        if ($isCrypto
+            && $settings->withdrawal_option == "auto"
+            && in_array($method->name, ['Bitcoin', 'Litecoin', 'Ethereum', 'USDT'], true)) {
+            return $this->cpwithdraw($amount, $this->coinSymbolFor($method), $details['wallet_address'], $user->id, $toWithdraw);
         }
-
-        //get user last investment package
-        User_plans::where('user', Auth::user()->id)
-            ->where('active', 'yes')
-            ->orderBy('activated_at', 'asc')->first();
-
-        //get user
-        $user = User::where('id', Auth::user()->id)->first();
-
-        if ($request->method == 'Bitcoin') {
-            if (empty($user->btc_address)) {
-                return redirect()->route('profile')
-                    ->with('message', 'Please Setup your Bitcoin Wallet Address');
-            }
-            $coin = "BTC";
-            $wallet = $user->btc_address;
-        } elseif ($request->method  == 'Ethereum') {
-            if (empty($user->eth_address)) {
-                return redirect()->route('profile')
-                    ->with('message', 'Please Setup your Ethereum Wallet Address');
-            }
-            $coin = "ETH";
-            $wallet = $user->eth_address;
-        } elseif ($request->method  == 'Litecoin') {
-            if (empty($user->ltc_address)) {
-                return redirect()->route('profile')
-                    ->with('message', 'Please Setup your Litecoin Wallet Address');
-            }
-            $coin = "LTC";
-            $wallet = $user->ltc_address;
-        } elseif ($request->method  == 'USDT') {
-            if (empty($user->usdt_address)) {
-                return redirect()->route('profile')
-                    ->with('message', 'Please Setup your USDT Wallet Address');
-            }
-            $coin = "USDT.TRC20";
-            $wallet = $user->usdt_address;
-        } elseif ($request->method  == 'Bank Transfer') {
-            if (empty($user->account_name) or empty($user->bank_name) or empty($user->account_number)) {
-                return redirect()->route('profile')
-                    ->with('message', 'Please Setup your Bank Account Details');
-            }
-        }
-
-        $amount = $request['amount'];
-        $ui = $user->id;
-
-
-   if ($settings->withdrawal_option == "auto" and ($request->method == 'Bitcoin' or $request->method  == 'Litecoin' or $request->method  == 'Ethereum' or $request->method == 'USDT')) {
-            return $this->cpwithdraw($amount, $coin, $wallet, $ui, $to_withdraw);
-        }
-
-            //debit user
-            User::where('id', $user->id)->update([
-                'account_bal' => $user->account_bal - $to_withdraw,
-                'withdrawotp' => NULL,
-            ]);
-            
-            // Clear withdrawal verification session
-            $request->session()->forget('withdrawal_step');
-
-
-
-
-        //save withdrawal info
-        $dp = new Withdrawal();
-        $dp->amount = $amount;
-        $dp->to_deduct = $to_withdraw;
-        $dp->payment_mode = $request->method;
-        $dp->status = 'Pending';
-        $dp->paydetails = $request->details;
-        $dp->user = $user->id;
-        $dp->save();
 
         try {
-            // Send withdrawal request notification
+            DB::transaction(function () use ($user, $method, $amount, $charges, $toWithdraw, $paydetails, $validated, $isCrypto, $settings) {
+                $lockedUser = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+                if ((float) $lockedUser->account_bal < $toWithdraw) {
+                    throw new \DomainException('Sorry, your account balance is insufficient for this request.');
+                }
+
+                if (Withdrawal::where('submission_key', $validated['submission_key'])->exists()) {
+                    throw new \DomainException('This withdrawal request has already been submitted.');
+                }
+
+                // Reserve funds immediately; the admin approval workflow refunds
+                // on rejection.
+                $lockedUser->account_bal = round((float) $lockedUser->account_bal - $toWithdraw, 2);
+                $lockedUser->withdrawotp = null;
+                $lockedUser->save();
+
+                Withdrawal::create([
+                    'user' => $lockedUser->id,
+                    'amount' => $amount,
+                    'to_deduct' => $toWithdraw,
+                    'charges' => $charges,
+                    'payment_mode' => $method->name,
+                    'method_id' => $method->id,
+                    'asset' => $isCrypto ? $method->name : null,
+                    'currency' => $isCrypto ? null : ($method->currency ?: $settings->s_currency),
+                    'network' => $isCrypto ? $method->network : null,
+                    'paydetails' => $paydetails,
+                    'status' => 'Pending',
+                    'submission_key' => $validated['submission_key'],
+                ]);
+            });
+        } catch (\DomainException $e) {
+            return redirect()->back()->with('message', $e->getMessage());
+        }
+
+        // Clear the guided-withdrawal session.
+        session()->forget(['withdrawal_step', 'withdraw_method_id']);
+
+        try {
             $this->notificationService->sendWithdrawalRequestNotification(
                 $user->id,
                 $amount,
-                $request->method,
+                $method->name,
                 'pending'
             );
         } catch (\Exception $e) {
             Log::error('Failed to send withdrawal request notification', [
                 'error' => $e->getMessage(),
                 'user_id' => $user->id,
-                'withdrawal_id' => $dp->id,
-                'amount' => $amount
+                'amount' => $amount,
             ]);
         }
 
         try {
-            // send mail to admin
-            Mail::to($settings->contact_email)->send(new WithdrawalStatus($dp, $user, 'Withdrawal Request', true));
+            Mail::to($settings->contact_email)->send(new WithdrawalStatus(Withdrawal::where('submission_key', $validated['submission_key'])->first(), $user, 'Withdrawal Request', true));
         } catch (\Exception $e) {
             Log::error('Failed to send withdrawal notification email to admin', [
                 'error' => $e->getMessage(),
                 'user_id' => $user->id,
-                'withdrawal_id' => $dp->id,
                 'admin_email' => $settings->contact_email,
-                'amount' => $amount
+                'amount' => $amount,
             ]);
         }
 
         try {
-            //send notification to user
-            Mail::to($user->email)->send(new WithdrawalStatus($dp, $user, 'Successful Withdrawal Request'));
+            Mail::to($user->email)->send(new WithdrawalStatus(Withdrawal::where('submission_key', $validated['submission_key'])->first(), $user, 'Successful Withdrawal Request'));
         } catch (\Exception $e) {
             Log::error('Failed to send withdrawal confirmation email to user', [
                 'error' => $e->getMessage(),
                 'user_id' => $user->id,
-                'withdrawal_id' => $dp->id,
                 'user_email' => $user->email,
-                'amount' => $amount
+                'amount' => $amount,
             ]);
         }
 
         return redirect()->route('withdrawals')
-            ->with('success', 'Action Sucessful! Please wait while we process your request.');
+            ->with('success', 'Action Successful! Please wait while we process your request.');
     }
 
+    /**
+     * Map a payment-method name to the CoinPayments currency symbol.
+     */
+    private function coinSymbolFor(Wdmethod $method): string
+    {
+        $map = [
+            'Bitcoin' => 'BTC',
+            'Ethereum' => 'ETH',
+            'Litecoin' => 'LTC',
+            'USDT' => 'USDT.TRC20',
+            'Solana' => 'SOL',
+            'BUSD' => 'BUSD',
+        ];
 
-    // for front end content management
+        return $map[$method->name] ?? strtoupper($method->name);
+    }
+
     function RandomStringGenerator($n)
     {
         $generated_string = "";
@@ -296,7 +344,6 @@ class WithdrawalController extends Controller
             $index = rand(0, $len - 1);
             $generated_string = $generated_string . $domain[$index];
         }
-        // Return the random generated string
         return $generated_string;
     }
 }

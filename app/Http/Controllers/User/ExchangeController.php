@@ -12,19 +12,33 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Models\CryptoRecord;
+use App\Services\MarketPriceService;
 use App\Traits\Apitrait;
 
 class ExchangeController extends Controller
 {
     use Apitrait;
 
+    /**
+     * Cryptocurrencies available for swapping. This mirrors the columns of the
+     * crypto_accounts table so that every asset a user can swap into or out of
+     * actually has a wallet column to hold the balance.
+     */
+    private function supportedCoins(): array
+    {
+        return ['btc', 'eth', 'ltc', 'link', 'bnb', 'ada', 'aave', 'usdt', 'bch', 'xrp', 'xlm'];
+    }
+
     public function assetview()
     {
-        $settings = SettingsCont::where('id', '1')->first();
+        $cbalance = CryptoAccount::where('user_id', Auth::user()->id)->first();
+        if (!$cbalance) {
+            $cbalance = new CryptoAccount();
+        }
 
         return view('user.asset', [
             'title' =>  'Exchange currency',
-            'cbalance' => CryptoAccount::where('user_id', Auth::user()->id)->first(),
+            'cbalance' => $cbalance,
         ]);
     }
 
@@ -43,34 +57,39 @@ class ExchangeController extends Controller
             return response()->json(['status' => 400, 'message' => 'Amount must be greater than zero.'], 400);
         }
 
-        $supported = ['usd', 'btc', 'eth', 'ltc', 'link', 'bnb', 'ada', 'aave', 'usdt', 'bch', 'xrp', 'xlm'];
-        if (!in_array(strtolower($base), $supported, true) || !in_array(strtolower($quote), $supported, true) || strtolower($base) === strtolower($quote)) {
+        $base = strtolower((string) $base);
+        $quote = strtolower((string) $quote);
+        $supported = array_merge(['usd'], $this->supportedCoins());
+
+        if (!in_array($base, $supported, true) || !in_array($quote, $supported, true) || $base === $quote) {
             return response()->json(['status' => 422, 'message' => 'Select two different supported currencies.'], 422);
         }
 
         $settings = SettingsCont::where('id', '1')->first();
         $fee_percentage = max(0, min(100, (float) ($settings->fee ?? 0)));
-        $amount_after_fee = $amount - ($amount * $fee_percentage / 100);
 
-        try {
-            $baseUsd = strtolower($base) === 'usd' ? 1 : $this->get_rate($base, 'usd');
-            $quoteUsd = strtolower($quote) === 'usd' ? 1 : $this->get_rate($quote, 'usd');
-            if (!$baseUsd || !$quoteUsd) {
-                throw new \Exception('A live rate is temporarily unavailable. Please try again shortly.');
-            }
-            $rate = $baseUsd / $quoteUsd;
-            $quantity = $amount_after_fee * $rate;
+        $prices = app(MarketPriceService::class);
+        $baseUsd = $base === 'usd' ? 1.0 : $prices->getUsdPrice($base);
+        $quoteUsd = $quote === 'usd' ? 1.0 : $prices->getUsdPrice($quote);
+
+        if ($baseUsd === null || $quoteUsd === null || (float) $quoteUsd <= 0) {
             return response()->json([
-                'status' => 200,
-                'data' => round($quantity, 8),
-                'rate' => round($rate, 12),
-                'fee_percentage' => $fee_percentage,
-                'updated_at' => now()->toIso8601String(),
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json(['status' => 503, 'message' => $e->getMessage()], 503);
+                'status' => 503,
+                'message' => 'A live market rate is temporarily unavailable. Please try again in a moment.',
+            ], 503);
         }
+
+        $rate = (float) $baseUsd / (float) $quoteUsd;
+        $amount_after_fee = $amount - ($amount * $fee_percentage / 100);
+        $quantity = $amount_after_fee * $rate;
+
+        return response()->json([
+            'status' => 200,
+            'data' => round($quantity, 8),
+            'rate' => round($rate, 12),
+            'fee_percentage' => $fee_percentage,
+            'updated_at' => now()->toIso8601String(),
+        ]);
     }
 
 
@@ -90,6 +109,9 @@ class ExchangeController extends Controller
             return response()->json(['status' => 503, 'message' => $quote['message'] ?? 'Live price unavailable.'], 503);
         }
         $quantity = (float) $quote['data'];
+        $rate = (float) ($quote['rate'] ?? 0);
+        $feePercentage = (float) ($quote['fee_percentage'] ?? 0);
+        $feeAmount = round($amount * $feePercentage / 100, 8);
         $userId = Auth::id();
         $cacheKey = 'crypto-swap:' . $userId . ':' . sha1($request->request_key);
         if (!Cache::add($cacheKey, 1, now()->addMinutes(10))) {
@@ -97,7 +119,7 @@ class ExchangeController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($source, $destination, $amount, $quantity, $userId) {
+            DB::transaction(function () use ($source, $destination, $amount, $quantity, $rate, $feePercentage, $feeAmount, $userId) {
                 $user = User::whereKey($userId)->lockForUpdate()->firstOrFail();
                 $wallet = CryptoAccount::where('user_id', $user->id)->lockForUpdate()->first();
                 if (!$wallet) {
@@ -136,6 +158,9 @@ class ExchangeController extends Controller
                 $record->dest = strtoupper($destination);
                 $record->amount = $amount;
                 $record->quantity = $quantity;
+                $record->exchange_rate = $rate;
+                $record->fee_percentage = $feePercentage;
+                $record->fee_amount = $feeAmount;
                 $record->save();
             });
         } catch (\DomainException $e) {
@@ -156,24 +181,15 @@ class ExchangeController extends Controller
         $user = Auth::user();
         $acntbals = DB::table('crypto_accounts')->where('user_id', $user->id)->first();
 
-        if (empty($acntbals->$coin)) {
-            $balanc = 0;
-        } else {
-            $balanc = $acntbals->$coin;
-        }
+        $balanc = ($acntbals && isset($acntbals->$coin)) ? (float) $acntbals->$coin : 0;
 
         $dollar = $this->get_rate($coin, 'usd');
-        $mainbal = $balanc * $dollar;
+        $mainbal = $balanc * (float) ($dollar ?? 0);
 
         if ($settings->s_currency == 'USD') {
             $price = number_format(round($mainbal));
         } else {
-            if (empty($settingss->currency_rate)) {
-                $rate = 1;
-            } else {
-                $rate = $settingss->currency_rate;
-            }
-
+            $rate = empty($settingss->currency_rate) ? 1 : $settingss->currency_rate;
             $othercurr = $mainbal * $rate;
             $price = number_format(round($othercurr));
         }

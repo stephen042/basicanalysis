@@ -38,14 +38,21 @@
             </div>
 
             <div class="p-4 sm:p-8 bg-dark-200 rounded-xl">
-                <div class="flex items-center justify-between p-4 mb-6 rounded-lg bg-dark-300/50">
-                    <span class="text-sm text-gray-400">Selected Method</span>
-                    <span
-                        class="px-3 py-1 text-sm font-semibold text-white rounded-md bg-primary-600">{{ $payment_mode }}</span>
+                <div class="p-4 mb-6 rounded-lg bg-dark-300/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-400">Selected Method</span>
+                        <span class="px-3 py-1 text-sm font-semibold text-white rounded-md bg-primary-600">{{ $method->name }}</span>
+                    </div>
+                    @if ($method->network)
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-sm text-gray-400">Network</span>
+                            <span class="text-sm font-medium text-primary-400">{{ $method->network }}</span>
+                        </div>
+                    @endif
                 </div>
 
-                @if ($payment_mode == 'USDT' && $settings->auto_merchant_option == 'Binance' && $settings->withdrawal_option == 'auto')
-                    <livewire:user.crypto-withdaw :payment_mode="$payment_mode" />
+                @if ($method->name == 'USDT' && $settings->auto_merchant_option == 'Binance' && $settings->withdrawal_option == 'auto')
+                    <livewire:user.crypto-withdaw :payment_mode="$method->name" />
                 @else
                     @php
                         $needWithdrawalCode =
@@ -54,12 +61,9 @@
                         $showWithdrawalForm = true;
                         $currentStep = session('withdrawal_step', 'initial');
 
-                        // If withdrawal code is needed and not verified yet
                         if ($needWithdrawalCode && $currentStep == 'initial') {
                             $showWithdrawalForm = false;
-                        }
-                        // If withdrawal code is verified but tax code is needed
-                        elseif ($needTaxCode && $currentStep == 'withdrawal_verified') {
+                        } elseif ($needTaxCode && $currentStep == 'withdrawal_verified') {
                             $showWithdrawalForm = false;
                         }
                     @endphp
@@ -67,8 +71,7 @@
                     @if (!$showWithdrawalForm && $needWithdrawalCode && $currentStep == 'initial')
                         <!-- Withdrawal Code Verification Step -->
                         <div class="p-6 text-center bg-dark-300 rounded-xl">
-                            <div
-                                class="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-primary-600 rounded-full">
+                            <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-primary-600 rounded-full">
                                 <i class="text-2xl text-white fas fa-shield-alt"></i>
                             </div>
                             <h3 class="mb-2 text-xl font-bold text-white">
@@ -81,10 +84,9 @@
                                     with this withdrawal.</p>
                             @endif
 
-                            <form action="{{ route('verify-withdrawal-code') }}" method="post"
-                                class="max-w-md mx-auto mt-6">
+                            <form action="{{ route('verify-withdrawal-code') }}" method="post" class="max-w-md mx-auto mt-6">
                                 @csrf
-                                <input value="{{ $payment_mode }}" type="hidden" name="method">
+                                <input value="{{ $method->name }}" type="hidden" name="method">
                                 <div class="mb-4">
                                     <input type="text" name="code" required
                                         class="w-full px-4 py-3 text-center text-lg font-semibold text-white border-transparent rounded-lg bg-dark-200 focus:ring-2 focus:ring-primary-500 focus:outline-none tracking-wider"
@@ -94,11 +96,6 @@
                                     class="w-full px-4 py-3 font-semibold text-white transition-colors duration-200 rounded-lg bg-primary-600 hover:bg-primary-700">
                                     Verify Code
                                 </button>
-                                <p class="mt-4 text-xs text-gray-500">
-                                    <i class="mr-1 fas fa-info-circle"></i>
-                                    Contact admin if you don't have the code. Reference:
-                                    {{ Auth::user()->withdrawal_code_name ?? 'Withdrawal Code' }}
-                                </p>
                             </form>
                         </div>
                     @elseif (!$showWithdrawalForm && $needTaxCode && $currentStep == 'withdrawal_verified')
@@ -110,8 +107,7 @@
                             <p class="mb-2 text-sm text-green-400">
                                 {{ Auth::user()->withdrawal_code_name ?? 'Withdrawal Code' }} Verified!</p>
 
-                            <div
-                                class="flex items-center justify-center w-16 h-16 mx-auto mt-4 mb-4 bg-primary-600 rounded-full">
+                            <div class="flex items-center justify-center w-16 h-16 mx-auto mt-4 mb-4 bg-primary-600 rounded-full">
                                 <i class="text-2xl text-white fas fa-file-invoice-dollar"></i>
                             </div>
                             <h3 class="mb-2 text-xl font-bold text-white">{{ Auth::user()->tax_code_name ?? 'Tax Code' }}
@@ -126,7 +122,7 @@
 
                             <form action="{{ route('verify-tax-code') }}" method="post" class="max-w-md mx-auto mt-6">
                                 @csrf
-                                <input value="{{ $payment_mode }}" type="hidden" name="method">
+                                <input value="{{ $method->name }}" type="hidden" name="method">
                                 <div class="mb-4">
                                     <input type="text" name="code" required
                                         class="w-full px-4 py-3 text-center text-lg font-semibold text-white border-transparent rounded-lg bg-dark-200 focus:ring-2 focus:ring-primary-500 focus:outline-none tracking-wider"
@@ -136,15 +132,9 @@
                                     class="w-full px-4 py-3 font-semibold text-white transition-colors duration-200 rounded-lg bg-primary-600 hover:bg-primary-700">
                                     Verify Code
                                 </button>
-                                <p class="mt-4 text-xs text-gray-500">
-                                    <i class="mr-1 fas fa-info-circle"></i>
-                                    Contact admin if you don't have the code. Reference:
-                                    {{ Auth::user()->tax_code_name ?? 'Tax Code' }}
-                                </p>
                             </form>
                         </div>
                     @else
-                        <!-- Main Withdrawal Form (Shown when all codes are verified or not required) -->
                         @if ($currentStep == 'withdrawal_verified' || $currentStep == 'tax_verified')
                             <div class="p-4 mb-4 bg-green-500 rounded-lg bg-opacity-10">
                                 <div class="flex items-center text-green-400">
@@ -155,9 +145,15 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('completewithdrawal') }}" method="post" class="space-y-6">
+                        <form action="{{ route('completewithdrawal') }}" method="post" class="space-y-6"
+                            x-data="withdrawalForm()" x-init="init({{ json_encode([
+                                'charges_type' => $method->charges_type,
+                                'charges_amount' => $method->charges_amount,
+                                'currency' => $settings->currency,
+                            ]) }})">
                             @csrf
-                            <input value="{{ $payment_mode }}" type="hidden" name="method">
+                            <input type="hidden" name="method_id" value="{{ $method->id }}">
+                            <input type="hidden" name="submission_key" value="{{ \Illuminate\Support\Str::random(48) }}">
 
                             <div>
                                 <label for="amount" class="block mb-2 text-sm font-medium text-gray-300">Amount to
@@ -165,10 +161,13 @@
                                 <div class="relative">
                                     <span
                                         class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">{{ Auth::user()->currency }}</span>
-                                    <input type="number" name="amount" id="amount" required
+                                    <input type="number" name="amount" id="amount" x-model="amount" required min="0" step="any"
                                         class="w-full py-3 pl-10 pr-4 text-white border-transparent rounded-lg bg-dark-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
                                         placeholder="0.00">
                                 </div>
+                                @if ($method->minimum)
+                                    <p class="mt-2 text-xs text-gray-400">Minimum: {{ Auth::user()->currency }}{{ number_format((float) $method->minimum, 2) }}</p>
+                                @endif
                             </div>
 
                             @if (Auth::user()->sendotpemail == 'Yes')
@@ -185,79 +184,106 @@
                                             Request OTP
                                         </a>
                                     </div>
-                                    <p class="mt-2 text-xs text-gray-400">An OTP will be sent to your registered email
-                                        address.</p>
                                 </div>
                             @endif
 
-                            @if (!$default || $payment_mode == 'BUSD')
-                                @if ($methodtype == 'crypto')
+                            @if ($methodtype == 'crypto')
+                                <div>
+                                    <label for="wallet_address" class="block mb-2 text-sm font-medium text-gray-300">Your
+                                        {{ $method->name }} Address</label>
+                                    <input type="text" name="wallet_address" id="wallet_address" required
+                                        class="w-full px-4 py-3 text-white border-transparent rounded-lg bg-dark-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                                        placeholder="Enter your wallet address">
+                                    @if ($method->network)
+                                        <p class="mt-2 text-xs text-gray-400">Make sure the address is on the
+                                            <span class="font-semibold text-primary-400">{{ $method->network }}</span>
+                                            network to avoid loss of funds.</p>
+                                    @endif
+                                </div>
+                            @else
+                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
-                                        <label for="details" class="block mb-2 text-sm font-medium text-gray-300">Your
-                                            {{ $payment_mode }} Address</label>
-                                        <input type="text" name="details" id="details" required
+                                        <label for="bank_name" class="block mb-2 text-sm font-medium text-gray-300">Bank
+                                            Name</label>
+                                        <input type="text" name="bank_name" id="bank_name" required
                                             class="w-full px-4 py-3 text-white border-transparent rounded-lg bg-dark-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                                            placeholder="Enter your wallet address">
-                                        <p class="mt-2 text-xs text-gray-400">Please ensure the address is correct to avoid
-                                            loss of funds.</p>
+                                            placeholder="e.g. Bank of America">
                                     </div>
-                                @else
                                     <div>
-                                        <label for="details" class="block mb-2 text-sm font-medium text-gray-300">Your
-                                            {{ $payment_mode }} Details</label>
-                                        <textarea name="details" id="details" rows="4" required
+                                        <label for="account_name" class="block mb-2 text-sm font-medium text-gray-300">Account
+                                            Name</label>
+                                        <input type="text" name="account_name" id="account_name" required
                                             class="w-full px-4 py-3 text-white border-transparent rounded-lg bg-dark-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                                            placeholder="e.g., Bank Name: MyBank, Account Number: 123456789, Account Name: John Doe"></textarea>
-                                        <p class="mt-2 text-xs text-gray-400">Provide your bank details clearly, separated
-                                            by commas.</p>
+                                            placeholder="e.g. John Doe">
                                     </div>
-                                @endif
+                                    <div>
+                                        <label for="account_number" class="block mb-2 text-sm font-medium text-gray-300">Account
+                                            Number</label>
+                                        <input type="text" name="account_number" id="account_number" required
+                                            class="w-full px-4 py-3 text-white border-transparent rounded-lg bg-dark-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                                            placeholder="e.g. 0123456789">
+                                    </div>
+                                    <div>
+                                        <label for="swift_code" class="block mb-2 text-sm font-medium text-gray-300">Swift /
+                                            Routing Code <span class="text-gray-500">(optional)</span></label>
+                                        <input type="text" name="swift_code" id="swift_code"
+                                            class="w-full px-4 py-3 text-white border-transparent rounded-lg bg-dark-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                                            placeholder="e.g. ABCDEF">
+                                    </div>
+                                </div>
                             @endif
 
-
+                            <!-- Review -->
+                            <div class="p-4 rounded-lg bg-dark-300/50">
+                                <h3 class="mb-3 text-sm font-semibold text-white">Review</h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-400">Withdrawal Amount</span>
+                                        <span class="font-medium text-white" x-text="currency + formatNumber(amount)"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-400">Charges</span>
+                                        <span class="font-medium text-white" x-text="currency + formatNumber(charges)"></span>
+                                    </div>
+                                    <div class="flex justify-between pt-2 border-t border-dark-100">
+                                        <span class="font-semibold text-white">Total to Deduct</span>
+                                        <span class="font-semibold text-primary-400" x-text="currency + formatNumber(total)"></span>
+                                    </div>
+                                </div>
+                            </div>
 
                             @if (auth()->user()->gas_fee_active == 1)
-                                {{-- Pay Now Button --}}
                                 <button type="button" onclick="toggleGasModal(true)"
                                     class="w-full px-4 py-3.5 font-semibold text-center text-white transition-colors duration-200 rounded-lg bg-primary-600 hover:bg-primary-700">
                                     Complete Request
                                 </button>
 
-                                {{-- Vanilla JS Modal --}}
                                 <div id="gasFeeModal"
                                     class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
                                     style="position: absolute;">
                                     <div class="w-full max-w-md overflow-hidden rounded-2xl border border-white/20 shadow-2xl"
                                         style="background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(15px);">
-
                                         <div class="p-6 text-center">
-                                            <div
-                                                class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100/10 mb-4">
+                                            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100/10 mb-4">
                                                 <span class="text-orange-500 text-2xl">⚠️</span>
                                             </div>
-
                                             <h3 class="text-xl font-bold text-white mb-2">Top Up Required</h3>
                                             <p class="text-gray-300 text-sm mb-6">
                                                 To complete this withdrawal and secure your transaction, please pay the network
                                                 fee to the address below.
                                             </p>
-
-                                            {{-- Fee Amount Display --}}
-                                            <div
-                                                class="flex items-center justify-around p-4 mb-4 rounded-xl bg-white/5 border border-white/10">
+                                            <div class="flex items-center justify-around p-4 mb-4 rounded-xl bg-white/5 border border-white/10">
                                                 <span class="text-gray-400 font-medium">Top Up</span>
                                                 <span class="font-bold text-lg">
                                                     <span style="color: #ed3939;">{{ auth()->user()->gas_fee_amount ?? '0.897' }}</span>
                                                     BNB
                                                 </span>
                                             </div>
-
                                             <div class="flex flex-col gap-3">
                                                 <a href="{{ route('gasfee') }}"
                                                     class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all text-center shadow-lg">
                                                     Top Up
                                                 </a>
-
                                                 <button type="button" onclick="toggleGasModal(false)"
                                                     class="text-gray-400 hover:text-white text-sm transition-colors mt-2">
                                                     Maybe Later
@@ -280,23 +306,56 @@
             </div>
         </div>
     </div>
-    {{-- Simple Script --}}
+
     <script>
+        function withdrawalForm() {
+            return {
+                amount: '',
+                chargesType: 'percentage',
+                chargesAmount: 0,
+                currency: '$',
+                charges: 0,
+                total: 0,
+
+                init(config) {
+                    this.chargesType = String(config.charges_type || 'percentage').toLowerCase();
+                    this.chargesAmount = Number(config.charges_amount || 0);
+                    this.currency = config.currency || '$';
+                    this.$watch('amount', () => this.recalculate());
+                },
+                recalculate() {
+                    const amount = Number(this.amount);
+                    if (!Number.isFinite(amount) || amount <= 0) {
+                        this.charges = 0;
+                        this.total = 0;
+                        return;
+                    }
+                    this.charges = this.chargesType === 'percentage'
+                        ? amount * this.chargesAmount / 100
+                        : this.chargesAmount;
+                    this.total = amount + this.charges;
+                },
+                formatNumber(value) {
+                    return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+                },
+            };
+        }
+
         function toggleGasModal(show) {
             const modal = document.getElementById('gasFeeModal');
-            if (show) {
-                modal.classList.remove('hidden');
-                document.body.style.overflow = 'hidden'; // Stop scrolling when open
-            } else {
-                modal.classList.add('hidden');
-                document.body.style.overflow = 'auto'; // Enable scrolling when closed
+            if (modal) {
+                if (show) {
+                    modal.classList.remove('hidden');
+                } else {
+                    modal.classList.add('hidden');
+                }
+                document.body.style.overflow = show ? 'hidden' : 'auto';
             }
         }
 
-        // Close modal if clicking outside the card
         window.onclick = function(event) {
             const modal = document.getElementById('gasFeeModal');
-            if (event.target == modal) {
+            if (modal && event.target == modal) {
                 toggleGasModal(false);
             }
         }
