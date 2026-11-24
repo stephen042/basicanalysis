@@ -10,6 +10,7 @@ use App\Models\SettingsCont;
 use App\Models\Settings;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use App\Models\CryptoRecord;
 use App\Traits\Apitrait;
 
@@ -37,222 +38,115 @@ class ExchangeController extends Controller
 
     public function getprice($base, $quote, $amount)
     {
-        if ($amount <= 0) {
+        $amount = filter_var($amount, FILTER_VALIDATE_FLOAT);
+        if ($amount === false || $amount <= 0) {
             return response()->json(['status' => 400, 'message' => 'Amount must be greater than zero.'], 400);
         }
 
+        $supported = ['usd', 'btc', 'eth', 'ltc', 'link', 'bnb', 'ada', 'aave', 'usdt', 'bch', 'xrp', 'xlm'];
+        if (!in_array(strtolower($base), $supported, true) || !in_array(strtolower($quote), $supported, true) || strtolower($base) === strtolower($quote)) {
+            return response()->json(['status' => 422, 'message' => 'Select two different supported currencies.'], 422);
+        }
+
         $settings = SettingsCont::where('id', '1')->first();
-        $fee_percentage = $settings->fee ?? 0;
+        $fee_percentage = max(0, min(100, (float) ($settings->fee ?? 0)));
         $amount_after_fee = $amount - ($amount * $fee_percentage / 100);
 
-        $prices = 0;
-
         try {
-            // Handle direct USD to USDT and vice-versa, assuming 1:1 rate
-            if (($base == 'usd' && $quote == 'usdt') || ($base == 'usdt' && $quote == 'usd')) {
-                $prices = $amount_after_fee;
+            $baseUsd = strtolower($base) === 'usd' ? 1 : $this->get_rate($base, 'usd');
+            $quoteUsd = strtolower($quote) === 'usd' ? 1 : $this->get_rate($quote, 'usd');
+            if (!$baseUsd || !$quoteUsd) {
+                throw new \Exception('A live rate is temporarily unavailable. Please try again shortly.');
             }
-            // Handle conversion from USD to a cryptocurrency
-            elseif ($base == 'usd') {
-                $quote_rate = $this->get_rate($quote, 'usd');
-                if (is_null($quote_rate) || $quote_rate == 0) {
-                    throw new \Exception("Could not fetch the price for " . strtoupper($quote));
-                }
-                $prices = $amount_after_fee / $quote_rate;
-            }
-            // Handle conversion from a cryptocurrency to USD
-            elseif ($quote == 'usd') {
-                $base_rate = $this->get_rate($base, 'usd');
-                if (is_null($base_rate)) {
-                    throw new \Exception("Could not fetch the price for " . strtoupper($base));
-                }
-                $prices = $amount_after_fee * $base_rate;
-            }
-            // Handle conversion between two different cryptocurrencies
-            else {
-                $base_rate_in_usd = $this->get_rate($base, 'usd');
-                $quote_rate_in_usd = $this->get_rate($quote, 'usd');
-
-                if (is_null($base_rate_in_usd) || is_null($quote_rate_in_usd) || $quote_rate_in_usd == 0) {
-                    throw new \Exception("Could not fetch conversion rates.");
-                }
-
-                // Convert the amount of 'base' coin to its USD value, then convert that USD value to the 'quote' coin
-                $base_in_usd = $amount_after_fee * $base_rate_in_usd;
-                $prices = $base_in_usd / $quote_rate_in_usd;
-            }
-
-            return response()->json(['status' => 200, 'data' => round($prices, 8)]);
+            $rate = $baseUsd / $quoteUsd;
+            $quantity = $amount_after_fee * $rate;
+            return response()->json([
+                'status' => 200,
+                'data' => round($quantity, 8),
+                'rate' => round($rate, 12),
+                'fee_percentage' => $fee_percentage,
+                'updated_at' => now()->toIso8601String(),
+            ]);
 
         } catch (\Exception $e) {
-            return response()->json(['status' => 500, 'message' => $e->getMessage()], 500);
+            return response()->json(['status' => 503, 'message' => $e->getMessage()], 503);
         }
     }
 
 
     public function exchange(Request $request)
     {
-
-        $cryptobalances = CryptoAccount::where('user_id', Auth::user()->id)->first();
-        $acntbal = Auth::user()->account_bal;
-        $src = $request->source;
-        $cdest = $request->destination;
-        $user = User::find(Auth::user()->id);
-
-        if ($request->source == 'usd') {
-            if ($acntbal < $request->amount) {
-                return response()->json(['status' => 201, 'message' => 'Insuficient fund in your source account']);
-            }
-
-            User::where('id', Auth::user()->id)->update([
-                'account_bal' => $acntbal - $request->amount,
-            ]);
-
-            if ($request->destination == 'btc') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'btc' => $cryptobalances->btc + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'eth') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'eth' => $cryptobalances->eth + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'link') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'link' => $cryptobalances->link + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'usdt') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'usdt' => $cryptobalances->usdt + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'ltc') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'ltc' => $cryptobalances->ltc + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'bch') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'bch' => $cryptobalances->bch + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'xrp') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'xrp' => $cryptobalances->xrp + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'bnb') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'bnb' => $cryptobalances->bnb + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'ada') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'ada' => $cryptobalances->ada + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'xlm') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'xlm' => $cryptobalances->xlm + $request->quantity,
-                    ]);
-            }
-            if ($request->destination == 'aave') {
-                DB::table('crypto_accounts')
-                    ->where('user_id', $user->id)
-                    ->update([
-                        'aave' => $cryptobalances->aave + $request->quantity,
-                    ]);
-            }
-
-            $record = new CryptoRecord();
-            $record->source = strtoupper($request->source);
-            $record->dest = strtoupper($request->destination);
-            $record->amount = $request->amount;
-            $record->quantity = $request->quantity;
-            $record->save();
-
-            return response()->json(['status' => 200, 'success' => 'Exchange Successful, Refreshing your Balances']);
+        $request->validate([
+            'source' => 'required|string|in:usd,btc,eth,ltc,link,bnb,ada,aave,usdt,bch,xrp,xlm',
+            'destination' => 'required|string|in:usd,btc,eth,ltc,link,bnb,ada,aave,usdt,bch,xrp,xlm|different:source',
+            'amount' => 'required|numeric|gt:0|max:1000000000',
+            'request_key' => 'required|string|max:64',
+        ]);
+        $source = strtolower($request->source);
+        $destination = strtolower($request->destination);
+        $amount = (float) $request->amount;
+        $quote = $this->getprice($source, $destination, $amount)->getData(true);
+        if ($quote['status'] !== 200) {
+            return response()->json(['status' => 503, 'message' => $quote['message'] ?? 'Live price unavailable.'], 503);
+        }
+        $quantity = (float) $quote['data'];
+        $userId = Auth::id();
+        $cacheKey = 'crypto-swap:' . $userId . ':' . sha1($request->request_key);
+        if (!Cache::add($cacheKey, 1, now()->addMinutes(10))) {
+            return response()->json(['status' => 409, 'message' => 'This swap request was already processed.'], 409);
         }
 
-        if ($request->source != 'usd' and  $request->destination != 'usd') {
+        try {
+            DB::transaction(function () use ($source, $destination, $amount, $quantity, $userId) {
+                $user = User::whereKey($userId)->lockForUpdate()->firstOrFail();
+                $wallet = CryptoAccount::where('user_id', $user->id)->lockForUpdate()->first();
+                if (!$wallet) {
+                    $wallet = new CryptoAccount();
+                    $wallet->user_id = $user->id;
+                    $wallet->save();
+                    $wallet = CryptoAccount::whereKey($wallet->id)->lockForUpdate()->firstOrFail();
+                }
 
-            if ($cryptobalances->$src < $request->amount) {
-                return response()->json(['status' => 201, 'message' => 'Insuficient fund in your source account']);
-            }
+                if ($source === 'usd') {
+                    if ((float) $user->account_bal < $amount) {
+                        throw new \DomainException('Insufficient balance in your source account.');
+                    }
+                    $user->account_bal = round((float) $user->account_bal - $amount, 2);
+                    $user->save();
+                } else {
+                    if (!isset($wallet->$source) || (float) $wallet->$source < $amount) {
+                        throw new \DomainException('Insufficient balance in your source account.');
+                    }
+                    $wallet->$source = round((float) $wallet->$source - $amount, 8);
+                }
 
-            // $acnt = CryptoAccount::find($cryptobalances->id);
-            // $acnt->$src = $cryptobalances->$src  - $request->amount;
-            // $acnt->$cryptobalances->cdest = $cryptobalances->cdest + $request->quantity;
-            // $acnt->save();
+                if ($destination === 'usd') {
+                    $user->account_bal = round((float) $user->account_bal + $quantity, 2);
+                    $user->save();
+                } else {
+                    if (!isset($wallet->$destination)) {
+                        throw new \DomainException('Unsupported destination wallet.');
+                    }
+                    $wallet->$destination = round((float) $wallet->$destination + $quantity, 8);
+                }
+                $wallet->save();
 
-
-            CryptoAccount::where('user_id', $user->id)
-                ->update([
-                    $request->source => $cryptobalances->$src - $request->amount,
-                ]);
-
-            CryptoAccount::where('user_id', $user->id)
-                ->update([
-                    $request->destination => $cryptobalances->$cdest + $request->quantity,
-                ]);
-
-            $record = new CryptoRecord();
-            $record->source = strtoupper($request->source);
-            $record->dest = strtoupper($request->destination);
-            $record->amount = $request->amount;
-            $record->quantity = $request->quantity;
-            $record->save();
-
-            return response()->json(['status' => 200, 'success' => 'Exchange Successful, Refreshing your Balances']);
+                $record = new CryptoRecord();
+                $record->source = strtoupper($source);
+                $record->dest = strtoupper($destination);
+                $record->amount = $amount;
+                $record->quantity = $quantity;
+                $record->save();
+            });
+        } catch (\DomainException $e) {
+            Cache::forget($cacheKey);
+            return response()->json(['status' => 422, 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            Cache::forget($cacheKey);
+            throw $e;
         }
 
-        if ($request->source != 'usd' and  $request->destination == 'usd') {
-
-            if ($cryptobalances->$src < $request->amount) {
-                return response()->json(['status' => 201, 'message' => 'Insuficient fund in your source account']);
-            }
-
-            DB::table('crypto_accounts')
-                ->where('user_id', $user->id)
-                ->update([
-                    $request->source => $cryptobalances->$src - $request->amount,
-                ]);
-
-            User::where('id', Auth::user()->id)->update([
-                'account_bal' => $acntbal + $request->quantity,
-            ]);
-
-            $record = new CryptoRecord();
-            $record->source = strtoupper($request->source);
-            $record->dest = strtoupper($request->destination);
-            $record->amount = $request->amount;
-            $record->quantity = $request->quantity;
-            $record->save();
-
-            return response()->json(['status' => 200, 'success' => 'Exchange Successful, Refreshing your Balances']);
-        }
+        return response()->json(['status' => 200, 'success' => 'Exchange successful.']);
     }
 
     public function getBalance($coin)

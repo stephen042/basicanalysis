@@ -32,6 +32,8 @@ use App\Http\Controllers\Admin\TradingAssetController;
 use App\Http\Controllers\Admin\TradingBotController;
 use App\Http\Controllers\Admin\TradingDashboardController;
 use App\Http\Controllers\Admin\TradingPaymentController;
+use App\Http\Controllers\Admin\ManualTradingController;
+use App\Http\Controllers\Admin\CompoundInvestmentController;
 use App\Http\Controllers\Admin\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
@@ -116,6 +118,19 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 		Route::post('user-controls/{user}', [TradingDashboardController::class, 'updateUserLimits'])->name('user.update');
 		Route::get('suspicious-activity', [TradingDashboardController::class, 'suspiciousActivity'])->name('suspicious');
 		Route::post('manipulate-price', [TradingDashboardController::class, 'manipulatePrice'])->name('manipulate.price');
+	});
+
+	Route::prefix('manual-trading')->name('manual-trading.')->group(function () {
+		Route::get('/', [ManualTradingController::class, 'index'])->name('index');
+		Route::post('/{trade}/settle', [ManualTradingController::class, 'settle'])->name('settle');
+	});
+
+	Route::prefix('compound-investments')->name('compound-investments.')->group(function () {
+		Route::get('/', [CompoundInvestmentController::class, 'index'])->name('index');
+		Route::get('/{investment}', [CompoundInvestmentController::class, 'show'])->name('show');
+		Route::post('/{investment}/decision', [CompoundInvestmentController::class, 'decide'])->name('decision');
+		Route::post('/{investment}/topup', [CompoundInvestmentController::class, 'topup'])->name('topup');
+		Route::post('/{investment}/complete', [CompoundInvestmentController::class, 'complete'])->name('complete');
 	});
 
 

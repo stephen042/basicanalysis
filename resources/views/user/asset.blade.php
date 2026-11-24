@@ -139,6 +139,7 @@
                                     class="w-full px-4 py-2 text-white border rounded-lg bg-dark-300 border-dark-100"
                                     readonly>
                                 <input type="hidden" id="realquantity" name="quantity" x-model="realQuantity">
+                                <p id="exchange-rate" class="mt-2 text-xs text-gray-400" aria-live="polite">Enter an amount to fetch a live exchange rate.</p>
                             </div>
 
                             @if (auth()->user()->gas_fee_active == 1)
@@ -243,6 +244,8 @@
                 amount: '',
                 quantity: '',
                 realQuantity: '',
+                quoteSequence: 0,
+                quoteFor: '',
                 fee: {{ $moresettings->fee }},
                 coins: @json($coins),
 
@@ -303,41 +306,75 @@
                 },
 
                 async getQuantity() {
-                    if (!this.amount || parseFloat(this.amount) <= 0 || !this.source || !this.destination) {
+                    const sequence = ++this.quoteSequence;
+                    const amountInput = document.getElementById('amount');
+                    const sourceInput = document.getElementById('sourceasset');
+                    const destinationInput = document.getElementById('destinationasset');
+                    const quantityInput = document.getElementById('quantity');
+                    const realQuantityInput = document.getElementById('realquantity');
+                    const rawAmount = amountInput ? String(amountInput.value).trim() : '';
+                    const amount = Number(rawAmount);
+                    const source = sourceInput ? sourceInput.value : '';
+                    const destination = destinationInput ? destinationInput.value : '';
+
+                    if (!rawAmount || !Number.isFinite(amount) || amount <= 0 || !source || !destination || source === destination) {
                         this.quantity = '';
                         this.realQuantity = '';
-                        document.getElementById('quantity').value = '';
-                        document.getElementById('realquantity').value = '';
+                        this.quoteFor = '';
+                        quantityInput.value = '';
+                        realQuantityInput.value = '';
+                        document.getElementById('exchange-rate').textContent = 'Enter an amount to fetch a live exchange rate.';
                         return;
                     }
 
-                    const url =
-                        `{{ url('/dashboard/asset-price/') }}/${this.source}/${this.destination}/${this.amount}`;
+                    this.quantity = 'Fetching rate…';
+                    this.realQuantity = '';
+                    this.quoteFor = '';
+                    quantityInput.value = this.quantity;
+                    realQuantityInput.value = '';
+                    document.getElementById('exchange-rate').textContent = 'Fetching current exchange rate…';
+                    const quoteFor = `${source}|${destination}|${rawAmount}`;
+                    const url = `{{ url('/dashboard/asset-price/') }}/${encodeURIComponent(source)}/${encodeURIComponent(destination)}/${encodeURIComponent(rawAmount)}`;
                     try {
-                        const response = await fetch(url);
+                        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
                         const data = await response.json();
-                        if (data.status === 200) {
-                            this.quantity = `${data.data} ${this.destination.toUpperCase()}`;
-                            this.realQuantity = data.data;
-                            document.getElementById('quantity').value = this.quantity;
-                            document.getElementById('realquantity').value = this.realQuantity;
+                        if (sequence !== this.quoteSequence) return;
+                        const received = Number(data.data);
+                        if (response.ok && data.status === 200 && Number.isFinite(received)) {
+                            this.quantity = `${received.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${destination.toUpperCase()}`;
+                            this.realQuantity = String(received);
+                            this.quoteFor = quoteFor;
+                            quantityInput.value = this.quantity;
+                            realQuantityInput.value = this.realQuantity;
+                            document.getElementById('exchange-rate').textContent =
+                                `1 ${source.toUpperCase()} = ${Number(data.rate).toLocaleString(undefined, { maximumFractionDigits: 10 })} ${destination.toUpperCase()} · ${data.fee_percentage}% fee · refreshed ${new Date(data.updated_at).toLocaleTimeString()}`;
                         } else {
-                            this.quantity = 'Error fetching price';
+                            this.quantity = '';
                             this.realQuantity = '';
-                            document.getElementById('quantity').value = this.quantity;
-                            document.getElementById('realquantity').value = '';
+                            this.quoteFor = '';
+                            quantityInput.value = '';
+                            realQuantityInput.value = '';
+                            document.getElementById('exchange-rate').textContent = data.message || 'Live rate unavailable. Please try again.';
                         }
                     } catch (error) {
+                        if (sequence !== this.quoteSequence) return;
                         console.error('Error fetching quantity:', error);
-                        this.quantity = 'Error fetching price';
+                        this.quantity = '';
                         this.realQuantity = '';
-                        document.getElementById('quantity').value = this.quantity;
-                        document.getElementById('realquantity').value = '';
+                        this.quoteFor = '';
+                        quantityInput.value = '';
+                        realQuantityInput.value = '';
+                        document.getElementById('exchange-rate').textContent = 'Could not load a live rate. Check your connection and try again.';
                     }
                 },
 
                 async exchangeNow() {
-                    if (!this.amount || parseFloat(this.amount) <= 0) {
+                    const amountInput = document.getElementById('amount');
+                    const source = document.getElementById('sourceasset').value;
+                    const destination = document.getElementById('destinationasset').value;
+                    const rawAmount = amountInput ? String(amountInput.value).trim() : '';
+                    const amount = Number(rawAmount);
+                    if (!rawAmount || !Number.isFinite(amount) || amount <= 0) {
                         if (typeof Swal !== 'undefined') {
                             Swal.fire({
                                 icon: 'warning',
@@ -353,7 +390,11 @@
                         return;
                     }
 
-                    if (!this.realQuantity) {
+                    const quoteFor = `${source}|${destination}|${rawAmount}`;
+                    if (this.quoteFor !== quoteFor || !this.realQuantity || !Number.isFinite(Number(this.realQuantity))) {
+                        await this.getQuantity();
+                    }
+                    if (this.quoteFor !== quoteFor || !this.realQuantity || !Number.isFinite(Number(this.realQuantity))) {
                         if (typeof Swal !== 'undefined') {
                             Swal.fire({
                                 icon: 'warning',
@@ -370,17 +411,22 @@
                     }
 
                     // Show loading state
-                    const submitButton = document.querySelector('button[type="submit"]');
+                    const submitButton = document.querySelector('#exchnageform button[type="submit"]');
+                    if (!submitButton) {
+                        alert('Swap action is unavailable for this account.');
+                        return;
+                    }
                     const originalText = submitButton.textContent;
                     submitButton.disabled = true;
                     submitButton.textContent = 'Processing...';
 
                     const formData = new FormData();
                     formData.append('_token', '{{ csrf_token() }}');
-                    formData.append('source', this.source);
-                    formData.append('destination', this.destination);
-                    formData.append('amount', this.amount);
-                    formData.append('quantity', this.realQuantity);
+                    formData.append('source', source);
+                    formData.append('destination', destination);
+                    formData.append('amount', rawAmount);
+                    formData.append('quantity', String(this.realQuantity));
+                    formData.append('request_key', '{{ \Illuminate\Support\Str::random(48) }}');
 
                     try {
                         const response = await fetch("{{ route('exchangenow') }}", {
@@ -411,17 +457,18 @@
                                 setTimeout(() => window.location.reload(), 1500);
                             }
                         } else {
+                            const errorMessage = data.message || (data.errors ? Object.values(data.errors).flat()[0] : 'The swap could not be completed. Please try again.');
                             if (typeof Swal !== 'undefined') {
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Exchange Failed',
-                                    text: data.message,
+                                    text: errorMessage,
                                     background: 'rgb(35, 38, 39)',
                                     color: 'rgb(254, 254, 254)',
                                     confirmButtonColor: 'rgb(154, 217, 83)'
                                 });
                             } else {
-                                alert(data.message);
+                                alert(errorMessage);
                             }
                         }
                     } catch (error) {

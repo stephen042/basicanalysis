@@ -91,7 +91,7 @@
                                                     <input type="checkbox" id="selectAll">
                                                 </th>
                                                 <th>Client Name</th>
-                                                <th>Username</th>
+                                                @if ($supportsUsername)<th>Username</th>@endif
                                                 <th>Email</th>
                                                 <th>Phone</th>
                                                 <th>Status</th>
@@ -109,7 +109,7 @@
                                                     </td>
 
                                                     <td>{{ $user->name }}</td>
-                                                    <td>{{ $user->username }}</td>
+                                                    @if ($supportsUsername)<td>{{ $user->username }}</td>@endif
                                                     <td>{{ $user->email }}</td>
                                                     <td>{{ $user->phone }}</td>
 
@@ -159,10 +159,12 @@
 
                             <div class="form-row">
                                 <div class="form-group col-md-12">
+                                    @if ($supportsUsername)
                                     <h6 class="text-{{ $text }}">Username</h6>
                                     <input type="text" id="usernameinput"
                                         class="form-control  text-{{ $text }}" name="username"
                                         wire:model.defer='username' required>
+                                    @endif
                                 </div>
                                 <div class="form-group col-md-12">
                                     <h6 class="text-{{ $text }}">Fullname</h6>

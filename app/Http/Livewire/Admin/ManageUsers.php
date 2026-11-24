@@ -74,6 +74,7 @@ class ManageUsers extends Component
                 ->orderBy($this->orderby, $this->orderdirection)
                 ->get(),
             'plans' => Plans::all(),
+            'supportsUsername' => User::hasUsernameColumn(),
         ]);
     }
 
@@ -100,23 +101,35 @@ class ManageUsers extends Component
 
     public function saveUser()
     {
-        $this->validate([
-            'username' => 'required|unique:users,username',
+        $rules = [
             'fullname' => 'required',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
-        ]);
+        ];
+        if (User::hasUsernameColumn()) {
+            $rules['username'] = 'required|unique:users,username';
+        }
+        $this->validate($rules);
 
         $settings = Settings::find(1);
 
-        $user = User::create([
+        $attributes = [
             'name' => $this->fullname,
             'email' => $this->email,
-            'username' => $this->username,
             'password' => Hash::make($this->password),
-            // 'ref_link' can be generated here directly if you have the username
-            'ref_link' => $settings->site_address . '/ref/' . $this->username,
-        ]);
+        ];
+        $supportsUsername = User::hasUsernameColumn();
+        if ($supportsUsername) {
+            $attributes['username'] = $this->username;
+        }
+        $user = User::create($attributes);
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'ref_link')) {
+            $siteAddress = $settings ? $settings->site_address : config('app.url');
+            $reference = $supportsUsername ? $user->username : $user->id;
+            $user->ref_link = rtrim($siteAddress, '/') . '/ref/' . $reference;
+            $user->save();
+        }
 
         session()->flash('success', 'User created Successfully!');
         return redirect()->route('manageusers');

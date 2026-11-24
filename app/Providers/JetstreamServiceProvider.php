@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Settings;
 use App\Models\Activity;
 use Jenssegers\Agent\Agent;
+use Illuminate\Support\Facades\Schema;
 
 class JetstreamServiceProvider extends ServiceProvider
 {
@@ -37,15 +38,25 @@ class JetstreamServiceProvider extends ServiceProvider
         Jetstream::deleteUsersUsing(DeleteUser::class);
 
         Fortify::loginView(function () {
+            $settings = new Settings();
+            try {
+                if (Schema::hasTable('settings')) {
+                    $settings = Settings::where('id', 1)->first() ?: $settings;
+                }
+            } catch (\Throwable $e) {
+                // Render the login form with safe defaults during recovery.
+            }
+
             return view('auth.login',[
                 'title' => 'Sign In to Continue',
-                'settings' => Settings::where('id','1')->first(),
+                'settings' => $settings,
+                'supportsUsername' => User::hasUsernameColumn(),
             ]);
         });
 
 
         Fortify::authenticateUsing(function (Request $request) {
-           $user = User::where('email', $request->email) ->orWhere('username', $request->email)->first();
+            $user = User::findByLoginIdentifier(trim((string) $request->input('email')));
             $agent = new Agent();
 
             if ($user &&
@@ -65,11 +76,21 @@ class JetstreamServiceProvider extends ServiceProvider
 
         Fortify::registerView(function () {
             include 'get_user_ip_info.php';        
+            $settings = new Settings();
+            try {
+                if (Schema::hasTable('settings')) {
+                    $settings = Settings::where('id', 1)->first() ?: $settings;
+                }
+            } catch (\Throwable $e) {
+                // Render the registration form with safe defaults during recovery.
+            }
+
             return view('auth.register', [
                 'title' => 'Register an Account',
                 'user_country'=>$user_country,
                 'countries'=>$countries,
-                'settings' => Settings::where('id','1')->first(),
+                'settings' => $settings,
+                'supportsUsername' => User::hasUsernameColumn(),
             ]);
         });
 

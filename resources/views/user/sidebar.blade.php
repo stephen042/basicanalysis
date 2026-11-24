@@ -50,6 +50,9 @@
             Copy Trading
         </x-nav-link>
 
+        <x-nav-link href="{{ route('manual-trading.index') }}" :active="request()->routeIs('manual-trading.*')" icon="fas fa-chart-line">
+            Manual Trading
+        </x-nav-link>
        
             <x-nav-link href="{{ route('tradinghistory') }}" :active="request()->routeIs('tradinghistory')" icon="fas fa-chart-line">
                 Trading History
@@ -57,6 +60,9 @@
 
         <x-nav-link href="{{ route('compoundinterest') }}" :active="request()->routeIs('compoundinterest')" icon="fas fa-percentage">
             Compound Interest
+        </x-nav-link>
+        <x-nav-link href="{{ route('compound-investment.history') }}" :active="request()->routeIs('compound-investment.*')" icon="fas fa-layer-group">
+            Compounding History
         </x-nav-link>
       
 

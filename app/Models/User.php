@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use App\Models\Settings;
@@ -28,10 +30,13 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function sendEmailVerificationNotification()
     {
-        $settings = Settings::where('id', 1)->first();
-
-        if ($settings->enable_verification == 'true') {
-            $this->notify(new VerifyEmail);
+        try {
+            $settings = Schema::hasTable('settings') ? Settings::where('id', 1)->first() : null;
+            if ($settings && $settings->enable_verification == 'true') {
+                $this->notify(new VerifyEmail);
+            }
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 
@@ -98,6 +103,8 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'account_bal' => 'decimal:2',
+        'roi' => 'decimal:2',
         'trading_balance' => 'decimal:2',
         'demo_balance' => 'decimal:2',
         'total_profit_loss' => 'decimal:2',
@@ -114,6 +121,54 @@ class User extends Authenticatable implements MustVerifyEmail
         'withdrawal_code_enabled' => 'boolean',
         'tax_code_enabled' => 'boolean'
     ];
+
+    /**
+     * Legacy installs do not all have the optional username column. Keep
+     * email authentication available without issuing SQL against a missing
+     * column.
+     */
+    public static function hasUsernameColumn(): bool
+    {
+        return in_array('username', static::databaseColumns((new static())->getTable()), true);
+    }
+
+    /**
+     * Read column names using SHOW on MySQL/MariaDB, so authentication does
+     * not require SELECT privileges on information_schema.
+     */
+    public static function databaseColumns($table = 'users'): array
+    {
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return [];
+        }
+
+        try {
+            if (DB::connection()->getDriverName() === 'mysql') {
+                $columns = DB::select('SHOW COLUMNS FROM `' . $table . '`');
+                return array_map(function ($column) {
+                    return $column->Field;
+                }, $columns);
+            }
+
+            return Schema::getColumnListing($table);
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Find a user by email, and by username only when that column exists.
+     */
+    public static function findByLoginIdentifier($identifier)
+    {
+        $query = static::where('email', $identifier);
+
+        if (static::hasUsernameColumn()) {
+            $query->orWhere('username', $identifier);
+        }
+
+        return $query->first();
+    }
 
     /**
      * The accessors to append to the model's array form.
@@ -153,6 +208,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function tradingBots()
     {
         return $this->hasMany(UserTradingBot::class);
+    }
+
+    public function compoundInvestments()
+    {
+        return $this->hasMany(CompoundInvestment::class);
     }
 
     // Trading-related relationships
@@ -203,11 +263,18 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public static function search($search): \Illuminate\Database\Eloquent\Builder
     {
-        return empty($search) ? static::query()
-            : static::query()->where('id', 'like', '%' . $search . '%')
-            ->orWhere('name', 'like', '%' . $search . '%')
-            ->orWhere('username', 'like', '%' . $search . '%')
-            ->orWhere('email', 'like', '%' . $search . '%');
+        if (empty($search)) {
+            return static::query();
+        }
+
+        return static::query()->where(function ($query) use ($search) {
+            $query->where('id', 'like', '%' . $search . '%')
+                ->orWhere('name', 'like', '%' . $search . '%')
+                ->orWhere('email', 'like', '%' . $search . '%');
+            if (static::hasUsernameColumn()) {
+                $query->orWhere('username', 'like', '%' . $search . '%');
+            }
+        });
     }
 
     /**

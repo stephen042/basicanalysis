@@ -88,8 +88,14 @@ class Controller extends BaseController
     {
         if (isset($id)) {
             $request->session()->flush();
-            if (count(User::where('username', $id)->get()) == 1) {
-                $request->session()->put('ref_by', $id);
+            $referrer = null;
+            if (User::hasUsernameColumn()) {
+                $referrer = User::where('username', $id)->first();
+            } elseif (ctype_digit((string) $id)) {
+                $referrer = User::find($id);
+            }
+            if ($referrer) {
+                $request->session()->put('ref_by', User::hasUsernameColumn() ? $id : (string) $referrer->id);
             }
             return redirect()->route('register');
         }

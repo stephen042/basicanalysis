@@ -88,7 +88,7 @@
                     </li>
 
 
-                     <li class="nav-item {{ request()->routeIs('admin.copy-trading.*') ? 'active' : '' }}">
+                    <li class="nav-item {{ request()->routeIs('admin.copy-trading.*') ? 'active' : '' }}">
                         <a data-toggle="collapse" href="#copyTrading">
                             <i class="fas fa-copy"></i>
                             <p>Copy Trading</p>
@@ -123,6 +123,13 @@
                                 </li>
                             </ul>
                         </div>
+                    </li>
+
+                    <li class="nav-item {{ request()->routeIs('admin.manual-trading.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.manual-trading.index') }}"><i class="fas fa-chart-line"></i><p>Manual Trades</p></a>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('admin.compound-investments.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.compound-investments.index') }}"><i class="fas fa-percentage"></i><p>Compound Investments</p></a>
                     </li>
 
                     {{-- <li class="nav-item {{ request()->routeIs('admin.copy-trading.*') ? 'active' : '' }}">

@@ -67,8 +67,10 @@ class SocialLoginController extends Controller
 
             if (session('ref_by')) {
                 $ref_by = session('ref_by');
-                $user = User::where('username', $ref_by)->first();
-                $ref_by_id = $user->id;
+                $user = User::hasUsernameColumn()
+                    ? User::where('username', $ref_by)->first()
+                    : (ctype_digit((string) $ref_by) ? User::find($ref_by) : null);
+                $ref_by_id = $user ? $user->id : null;
             } else {
                 $ref_by_id = NULL;
             }

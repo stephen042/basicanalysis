@@ -45,11 +45,18 @@ trait Apitrait
                 return null;
             }
 
+            if (!array_key_exists($coin, $coinIdMap) || !preg_match('/^[a-z]{2,8}$/', $currency)) {
+                return null;
+            }
+
             $coinId = $coinIdMap[$coin];
             $apiUrl = "https://api.coingecko.com/api/v3/simple/price";
 
             try {
-                $response = Http::get($apiUrl, [
+                $response = Http::timeout(8)->withHeaders([
+                    'Accept' => 'application/json',
+                    'User-Agent' => config('app.name', 'Laravel') . ' crypto price calculator',
+                ])->get($apiUrl, [
                     'ids' => $coinId,
                     'vs_currencies' => $currency,
                 ]);
@@ -57,7 +64,7 @@ trait Apitrait
                 if ($response->successful() && $response->json() && isset($response->json()[$coinId][$currency])) {
                     return (float) $response->json()[$coinId][$currency];
                 } else {
-                    Log::error("CoinGecko API request failed for {$coinId} to {$currency}. Status: " . $response->status(), $response->json() ?? []);
+                    Log::warning("CoinGecko price lookup failed for {$coinId} to {$currency}. Status: " . $response->status());
                     return null; // Return null on failure
                 }
             } catch (\Exception $e) {

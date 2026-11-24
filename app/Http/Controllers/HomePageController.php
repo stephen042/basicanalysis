@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Mail;
 class HomePageController extends Controller
 {
     public function index(){
-        $settings=Settings::where('id', '=', '1')->first();
+        $settings=Settings::where('id', '=', '1')->first() ?: new Settings();
         //sum total deposited
         $total_deposits = Deposit::where('status','processed')->sum('amount');
 
@@ -34,6 +34,7 @@ class HomePageController extends Controller
 
         return view('auth.login')->with(array(
             'settings' => $settings,
+            'supportsUsername' => User::hasUsernameColumn(),
             'total_users' => User::count(),
             'plans' => Plans::all(),
             'total_deposits' => $total_deposits,

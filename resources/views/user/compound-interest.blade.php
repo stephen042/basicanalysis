@@ -22,6 +22,10 @@
                 <div class="hidden md:flex w-14 h-14 rounded-xl bg-primary/10 items-center justify-center shrink-0">
                     <i class="fas fa-calculator text-primary text-2xl"></i>
                 </div>
+                <a href="{{ route('compound-investment.create') }}"
+                    class="inline-flex shrink-0 items-center gap-2 h-11 px-6 rounded-full font-bold bg-primary hover:bg-primary-dark text-white transition-colors">
+                    Start Compounding <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
         </div>
 
@@ -320,12 +324,11 @@
         <div class="bg-dark-200 rounded-xl p-6 md:p-8 border border-dark-100 text-center">
             <h2 class="text-xl md:text-2xl font-bold text-white">Ready to put compounding to work?</h2>
             <p class="mt-2 text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
-                Copy trading has averaged ≈ 15.4% / month in our reference scenario. Invest and let profits reinvest
-                for you.
+                Set up a compound investment with your chosen duration and recurring contribution schedule.
             </p>
-            <a href="{{ route('copy-trading.index') }}"
+            <a href="{{ route('compound-investment.create') }}"
                 class="mt-4 inline-flex items-center gap-2 h-11 px-7 rounded-full font-bold bg-primary hover:bg-primary-dark text-white transition-colors">
-                Start Copy Trading <i class="fas fa-arrow-right"></i>
+                Start Compounding <i class="fas fa-arrow-right"></i>
             </a>
             <p class="mt-5 text-xs text-gray-500 max-w-3xl mx-auto leading-relaxed">
                 This calculator is for illustration only. Projections assume a constant return and do not guarantee

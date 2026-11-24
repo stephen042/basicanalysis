@@ -10,10 +10,10 @@
              <div class="modal-body ">
                  <form method="post" action="{{ route('topup') }}">
                      @csrf
-                     <div class="form-group">
-                         <input class="form-control  " placeholder="Enter amount" type="text" name="amount"
-                             required>
-                     </div>
+                       <div class="form-group">
+                          <input class="form-control  " placeholder="Enter amount" type="text" name="amount"
+                              required>
+                       </div>
                      <div class="form-group">
                          <h5 class="">Select where to Credit/Debit</h5>
                          <select class="form-control  " name="type" required>
@@ -498,12 +498,14 @@
              </div>
              <div class="modal-body ">
                  <form role="form" method="post" action="{{ route('edituser') }}">
-                     <div class="form-group">
-                         <h5 class=" ">Username</h5>
-                         <input class="form-control  " id="input1" value="{{ $user->username }}" type="text"
-                             name="username" required>
-                         <small>Note: same username should be use in the referral link.</small>
-                     </div>
+                      @if (!empty($supportsUsername))
+                      <div class="form-group">
+                          <h5 class=" ">Username</h5>
+                          <input class="form-control  " id="input1" value="{{ $user->username }}" type="text"
+                              name="username" required>
+                          <small>Note: same username should be use in the referral link.</small>
+                      </div>
+                      @endif
                      <div class="form-group">
                          <h5 class=" ">Fullname</h5>
                          <input class="form-control  " value="{{ $user->name }}" type="text" name="name"

@@ -37,14 +37,14 @@
 
     <div class="space-y-4 rounded-md shadow-sm">
         <div>
-            <label for="email-address" class="sr-only">Email address or Username</label>
+            <label for="email-address" class="sr-only">{{ !empty($supportsUsername) ? 'Email address or Username' : 'Email address' }}</label>
             <div class="relative">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-3">
                     <i class="text-gray-400 fa-solid fa-envelope"></i>
                 </span>
                 <input id="email-address" name="email" type="text"  required
                     class="relative block w-full px-3 py-3 pl-10 text-white placeholder-gray-500 border rounded-md appearance-none bg-dark-100 border-dark-300 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                    placeholder="Email address or Username" value="{{ old('email') }}">
+                    placeholder="{{ !empty($supportsUsername) ? 'Email address or Username' : 'Email address' }}" value="{{ old('email') }}">
             </div>
         </div>
         <div>

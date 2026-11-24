@@ -13,6 +13,7 @@ use App\Models\CopySubscription;
 use App\Models\CopyTrade;
 use App\Models\TradingAsset;
 use App\Models\ExpertPerformanceHistory;
+use App\Models\Tp_Transaction;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -171,6 +172,10 @@ class ProcessExpertTradesJob implements ShouldQueue
         foreach ($activeSubscriptions as $subscription) {
             try {
                 $user = $subscription->user;
+                if (!$user || CopyTrade::where('expert_trade_id', $expertTrade->id)
+                    ->where('copy_subscription_id', $subscription->id)->exists()) {
+                    continue;
+                }
                 
                 // Calculate copy trade amount
                 $copyAmount = $subscription->calculateCopyAmount($expertTrade->amount);
@@ -202,32 +207,53 @@ class ProcessExpertTradesJob implements ShouldQueue
                 $assetSymbol = $expertTrade->tradingAsset ? $expertTrade->tradingAsset->symbol : 'Unknown';
                 $expertName = $expert->name;
 
-                // Create copy trade with user-specific profit/loss
-                $copyTrade = CopyTrade::create([
-                    'copy_subscription_id' => $subscription->id,
-                    'expert_trade_id' => $expertTrade->id,
-                    'user_id' => $subscription->user_id,
-                    'trading_asset_id' => $expertTrade->trading_asset_id,
-                    'amount' => round($copyAmount, 2),
-                    'type' => $userType, // User's specific profit/loss outcome
-                    'asset_price' => $expertTrade->asset_price,
-                    'quantity' => round($expertTrade->quantity * $copyRatio, 8),
-                    'entry_price' => $expertTrade->entry_price,
-                    'exit_price' => $expertTrade->exit_price,
-                    'pnl' => round($copyPnl, 2),
-                    'trade_direction' => $expertTrade->trade_direction,
-                    'status' => $expertTrade->status,
-                    'copy_ratio' => round($copyRatio, 4),
-                    'opened_at' => $expertTrade->opened_at,
-                    'closed_at' => $expertTrade->closed_at
-                ]);
+                // Serialize per subscription and create the ledger entry in
+                // the same transaction as the CopyTrade, making queue retries
+                // harmless and ensuring profit is credited once to earnings.
+                $created = DB::transaction(function () use ($subscription, $expertTrade, $user, $copyAmount, $userType, $copyPnl, $copyRatio) {
+                    CopySubscription::whereKey($subscription->id)->lockForUpdate()->firstOrFail();
+                    if (CopyTrade::where('expert_trade_id', $expertTrade->id)
+                        ->where('copy_subscription_id', $subscription->id)->exists()) {
+                        return false;
+                    }
+                    $lockedUser = \App\Models\User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+                    CopyTrade::create([
+                        'copy_subscription_id' => $subscription->id,
+                        'expert_trade_id' => $expertTrade->id,
+                        'user_id' => $subscription->user_id,
+                        'trading_asset_id' => $expertTrade->trading_asset_id,
+                        'amount' => round($copyAmount, 2),
+                        'type' => $userType,
+                        'asset_price' => $expertTrade->asset_price,
+                        'quantity' => round($expertTrade->quantity * $copyRatio, 8),
+                        'entry_price' => $expertTrade->entry_price,
+                        'exit_price' => $expertTrade->exit_price,
+                        'pnl' => round($copyPnl, 2),
+                        'trade_direction' => $expertTrade->trade_direction,
+                        'status' => $expertTrade->status,
+                        'copy_ratio' => round($copyRatio, 4),
+                        'opened_at' => $expertTrade->opened_at,
+                        'closed_at' => $expertTrade->closed_at
+                    ]);
 
-                // Update user balance with P&L (for completed trades)
-                if ($expertTrade->status === 'closed') {
-                    $user->account_bal += $copyPnl;
-                    $user->roi += $copyPnl;
-                    $user->save();
-                    
+                    if ($expertTrade->status === 'closed') {
+                        if ($copyPnl > 0) {
+                            $lockedUser->roi = round((float) $lockedUser->roi + $copyPnl, 2);
+                        } elseif ($copyPnl < 0) {
+                            $lockedUser->account_bal = round((float) $lockedUser->account_bal + $copyPnl, 2);
+                        }
+                        $lockedUser->save();
+                        Tp_Transaction::create([
+                            'user' => $lockedUser->id,
+                            'plan' => $copyPnl >= 0 ? 'Copy Trading Profit' : 'Copy Trading Loss',
+                            'amount' => round($copyPnl, 2),
+                            'type' => 'ROI',
+                        ]);
+                    }
+                    return true;
+                });
+
+                if ($created && $expertTrade->status === 'closed') {
                     // Send notification that trade was executed and closed with result
                     $profitPercentage = ($copyPnl / $copyAmount) * 100;
                     $this->notificationService->sendCopyTradeClosedNotification(

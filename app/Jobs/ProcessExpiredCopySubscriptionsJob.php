@@ -8,6 +8,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use App\Models\CopySubscription;
+use App\Models\User;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -60,33 +61,42 @@ class ProcessExpiredCopySubscriptionsJob implements ShouldQueue
     {
         try {
             DB::transaction(function () use ($subscription) {
-                $user = $subscription->user;
+                $lockedSubscription = CopySubscription::whereKey($subscription->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                if ($lockedSubscription->status !== 'active' || !$lockedSubscription->expires_at || $lockedSubscription->expires_at->isFuture()) {
+                    return;
+                }
+                $lockedSubscription->load(['user', 'expertTrader', 'copyTrades']);
+                $user = User::whereKey($lockedSubscription->user_id)->lockForUpdate()->firstOrFail();
                 
                 // Calculate total P&L from all copy trades during subscription
-                // Note: P&L was already added to user balance during trades via ProcessExpertTradesJob
-                $totalPnl = $subscription->copyTrades->sum('pnl');
+                // Profits are credited to earnings and losses reduce principal
+                // in ProcessExpertTradesJob; only the original stake is returned here.
+                $totalPnl = (float) $lockedSubscription->copyTrades->sum('pnl');
                 
                 // Return original investment amount only
-                // (Profit/loss was already added to account_bal during each trade)
-                $returnAmount = $subscription->amount;
+                $returnAmount = $lockedSubscription->amount;
                 
                 // Update user balance
                 $user->account_bal += $returnAmount;
                 $user->save();
                 
                 // Mark subscription as completed
-                $subscription->update([
+                $lockedSubscription->update([
                     'status' => 'completed',
                     'completed_at' => Carbon::now()
                 ]);
                 
                 // Decrement expert's follower count
-                $subscription->expertTrader->decrement('total_followers');
+                if ($lockedSubscription->expertTrader) {
+                    $lockedSubscription->expertTrader->decrement('total_followers');
+                }
                 
                 // Send completion notification
-                $this->sendCompletionNotification($user, $subscription, $finalPnl, $returnAmount);
+                $this->sendCompletionNotification($user, $lockedSubscription, $totalPnl, $returnAmount);
                 
-                Log::info("Completed copy subscription {$subscription->id} for user {$user->id}: Investment Returned: \${$subscription->amount}, Total P&L During Subscription: \${$pnl}");
+                Log::info("Completed copy subscription {$lockedSubscription->id} for user {$user->id}: Investment Returned: \${$lockedSubscription->amount}, Total P&L During Subscription: \${$totalPnl}");
             });
             
         } catch (\Exception $e) {

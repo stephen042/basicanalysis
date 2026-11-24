@@ -118,6 +118,7 @@ class ManageUsersController extends Controller
         $transactions = SignalTransaction::with(['user', 'signal'])->latest()->paginate(10);
         return view('admin.Users.userdetails', [
             'user' => $user,
+            'supportsUsername' => User::hasUsernameColumn(),
             'pl' => Plans::orderByDesc('id')->get(),
             'bots' => TradingBot::where('status', 'active')->orderByDesc('id')->get(),
             'title' => "Manage $user->name",
@@ -356,19 +357,21 @@ class ManageUsersController extends Controller
             'copy_trading_loss_percentage' => 'required|numeric|min:0|max:100',
         ]);
 
-        User::where('id', $request['user_id'])
-            ->update([
+        $changes = [
                 'name' => $request['name'],
                 'email' => $request['email'],
                 'country' => $request['country'],
-                'username' => $request['username'],
                 'phone' => $request['phone'],
                 'ref_link' => $request['ref_link'],
                 'trading_profit_rate' => $request['trading_profit_rate'],
                 'copy_trading_win_rate' => $request['copy_trading_win_rate'],
                 'copy_trading_profit_percentage' => $request['copy_trading_profit_percentage'],
                 'copy_trading_loss_percentage' => $request['copy_trading_loss_percentage'],
-            ]);
+            ];
+        if (User::hasUsernameColumn()) {
+            $changes['username'] = $request['username'];
+        }
+        User::where('id', $request['user_id'])->update($changes);
         return redirect()->back()->with('success', 'User details updated Successfully!');
     }
 
@@ -595,32 +598,41 @@ class ManageUsersController extends Controller
 
     public function saveuser(Request $request)
     {
-
-        $request->validate([
+        $rules = [
             'name' => 'required|max:255',
-            'username' => 'required|unique:users,username',
             'email' => 'required|email|max:255|unique:users',
             'password' => 'required|min:8|confirmed',
-        ]);
+        ];
+        $supportsUsername = User::hasUsernameColumn();
+        if ($supportsUsername) {
+            $rules['username'] = 'required|unique:users,username';
+        }
+        $request->validate($rules);
 
-        $thisid = DB::table('users')->insertGetId([
+        $userData = [
             'name' => $request['name'],
             'email' => $request['email'],
             'ref_by' => NULL,
-            'username' => $request['username'],
             'password' => Hash::make($request->password),
             'created_at' => \Carbon\Carbon::now(),
             'updated_at' => \Carbon\Carbon::now(),
-        ]);
+        ];
+        if ($supportsUsername) {
+            $userData['username'] = $request['username'];
+        }
+        $thisid = DB::table('users')->insertGetId($userData);
 
         //assign referal link to user
         $settings = Settings::where('id', '=', '1')->first();
         $user = User::where('id', $thisid)->first();
 
-        User::where('id', $thisid)
-            ->update([
-                'ref_link' => $settings->site_address . '/ref/' . $user->username,
+        $siteAddress = $settings && $settings->site_address ? $settings->site_address : config('app.url');
+        $reference = $supportsUsername ? $user->username : $user->id;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'ref_link')) {
+            User::where('id', $thisid)->update([
+                'ref_link' => rtrim($siteAddress, '/') . '/ref/' . $reference,
             ]);
+        }
         return redirect()->back()->with('success', 'User created Sucessfully!');
     }
 

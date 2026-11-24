@@ -42,6 +42,7 @@
     @endif
 
     <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+        @if (!empty($supportsUsername))
         <div class="space-y-1">
             <label for="username" class="sr-only">Username</label>
             <div class="relative">
@@ -52,6 +53,7 @@
                     class="relative block w-full px-3 py-3 pl-10 text-white placeholder-gray-500 border rounded-md appearance-none bg-dark-100 border-dark-300 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm">
             </div>
         </div>
+        @endif
 
         <div class="space-y-1">
             <label for="name" class="sr-only">Full Name</label>

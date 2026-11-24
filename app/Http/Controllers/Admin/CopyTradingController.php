@@ -370,8 +370,14 @@ class CopyTradingController extends Controller
                 'closed_at' => $expertTrade->closed_at
             ]);
 
-            // Credit the exact amount to the user's available balance/wallet.
-            $user->account_bal = round($user->account_bal + $signedAmount, 2);
+            // Profit belongs in the earnings wallet (`roi`), which the
+            // dashboard totals together with account_bal. Losses reduce the
+            // available principal wallet, matching the existing wallet model.
+            if ($signedAmount > 0) {
+                $user->roi = round((float) $user->roi + $signedAmount, 2);
+            } elseif ($signedAmount < 0) {
+                $user->account_bal = round((float) $user->account_bal + $signedAmount, 2);
+            }
             $user->save();
 
             // Transaction record + trading history entry for the same amount.

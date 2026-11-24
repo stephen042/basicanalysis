@@ -21,7 +21,7 @@ class TransferController extends Controller
     public function transfertouser(Request $request)
     {
 
-        $receiver = User::where('email', $request->email)->orWhere('username', $request->email)->first();
+        $receiver = User::findByLoginIdentifier($request->email);
         $sender = Auth::user();
         $settings = Settings::find(1);
         $settingss = SettingsCont::find(1);
@@ -35,7 +35,8 @@ class TransferController extends Controller
             ]);
         }
 
-        if (($request->email == $sender->email) or ($request->email == $sender->username)) {
+        if ($request->email == $sender->email ||
+            (User::hasUsernameColumn() && $request->email == $sender->username)) {
             return response()->json([
                 'status' => 419,
                 'message' => 'You cannot send funds to yourself',
@@ -59,9 +60,8 @@ class TransferController extends Controller
         $user->account_bal = $sender->account_bal - $todeduct;
         $user->save();
 
-        User::where('email', $request->email)->orWhere('username', $request->email)->update([
-            'account_bal' => $receiver->account_bal + $request->amount,
-        ]);
+        $receiver->account_bal = $receiver->account_bal + $request->amount;
+        $receiver->save();
 
         //create history
         Tp_Transaction::create([

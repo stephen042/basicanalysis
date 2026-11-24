@@ -308,8 +308,10 @@ class TradingDashboardController extends Controller
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%");
+                  ->orWhere('email', 'like', "%{$search}%");
+                if (User::hasUsernameColumn()) {
+                    $q->orWhere('username', 'like', "%{$search}%");
+                }
             });
         }
 

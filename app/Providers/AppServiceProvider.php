@@ -12,6 +12,7 @@ use App\Models\TermsPrivacy;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage as FacadesStorage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -42,10 +43,33 @@ class AppServiceProvider extends ServiceProvider
         // Paginator::defaultSimpleView('vendor.pagination.tailwind');
         // Paginator::useTailwind();
 
-        // Sharing settings with all view
-        $settings = Settings::where('id', '1')->first();
-        $terms =  TermsPrivacy::find(1);
-        $moreset =  SettingsCont::find(1);
+        // Share safe defaults while an installation is being set up or the
+        // database has not yet been restored/seeded. A missing settings row
+        // must not make every view fail during rendering.
+        $settings = null;
+        $terms = null;
+        $moreset = null;
+        try {
+            if (Schema::hasTable('settings')) {
+                $settings = Settings::where('id', 1)->first();
+            }
+            if (Schema::hasTable('terms_privacies')) {
+                $terms = TermsPrivacy::find(1);
+            }
+            if (Schema::hasTable('settings_conts')) {
+                $moreset = SettingsCont::find(1);
+            }
+        } catch (\Throwable $e) {
+            // Continue with model defaults until storage/database is ready.
+        }
+
+        $settings = $settings ?: new Settings();
+        $settings->modules = $settings->modules ?: [
+            'investment' => true,
+            'cryptoswap' => true,
+        ];
+        $terms = $terms ?: new TermsPrivacy();
+        $moreset = $moreset ?: new SettingsCont();
 
         View::share('settings', $settings);
         View::share('terms', $terms);

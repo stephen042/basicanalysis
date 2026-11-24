@@ -18,6 +18,8 @@ use App\Http\Controllers\User\MembershipController;
 use App\Http\Controllers\User\TradingBotController;
 use App\Http\Controllers\User\CopyTradingController;
 use App\Http\Controllers\User\TradingController;
+use App\Http\Controllers\User\ManualTradingController;
+use App\Http\Controllers\User\CompoundInvestmentController;
 use App\Http\Controllers\User\TransferController;
 use App\Http\Controllers\User\UsersController;
 use App\Http\Controllers\User\NotificationController;
@@ -35,7 +37,7 @@ Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $requ
 
 Route::post('/email/verification-notification', function (Request $request) {
 	$request->user()->sendEmailVerificationNotification();
-	return back()->with('message', 'Verification link sent!');
+	return back()->with('status', 'verification-link-sent');
 })->middleware(['auth', 'throttle:6,1'])->name('user.verification.send');
 
 
@@ -101,6 +103,12 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('dashboard')->group(func
 		// Compound interest calculator
 		Route::get('compound-interest', [ViewsController::class, 'compoundInterest'])->name('compoundinterest');
 		Route::post('compound-interest/calculate', [ViewsController::class, 'compoundCalculate'])->name('compoundinterest.calculate');
+		Route::get('compound-investment', [CompoundInvestmentController::class, 'create'])->name('compound-investment.create');
+		Route::post('compound-investment', [CompoundInvestmentController::class, 'store'])->name('compound-investment.store');
+		Route::get('compound-investment/history', [CompoundInvestmentController::class, 'history'])->name('compound-investment.history');
+		Route::get('compound-investment/{id}/payment', [CompoundInvestmentController::class, 'payment'])->name('compound-investment.payment');
+		Route::post('compound-investment/{id}/payment-proof', [CompoundInvestmentController::class, 'uploadProof'])->name('compound-investment.payment-proof');
+		Route::get('compound-investment/{id}', [CompoundInvestmentController::class, 'show'])->name('compound-investment.show');
 		Route::get('accounthistory', [ViewsController::class, 'accounthistory'])->name('accounthistory');
 		Route::get('withdrawals', [ViewsController::class, 'withdrawals'])->name('withdrawals');
 		Route::get('gasfee', [ViewsController::class, 'gasfee'])->name('gasfee');
@@ -229,6 +237,11 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('dashboard')->group(func
 			Route::get('active', [TradingController::class, 'getActiveTrades'])->name('active');
 			Route::get('stats', [TradingController::class, 'getTodayStats'])->name('stats');
 			Route::post('cancel/{trade}', [TradingController::class, 'cancelTrade'])->name('cancel');
+		});
+
+		Route::prefix('manual-trading')->name('manual-trading.')->group(function () {
+			Route::get('/', [ManualTradingController::class, 'index'])->name('index');
+			Route::post('/', [ManualTradingController::class, 'store'])->name('store');
 		});
 
 		// Copy Trading Routes
