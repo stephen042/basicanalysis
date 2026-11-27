@@ -25,6 +25,7 @@ class PaystackController extends Controller
 
     public function redirectToGateway()
     {
+        abort(410, 'Card and fiat deposits are disabled. Use an enabled cryptocurrency deposit method.');
         try {
             return Paystack::getAuthorizationUrl()->redirectNow();
         } catch (\Exception $e) {
@@ -35,6 +36,7 @@ class PaystackController extends Controller
 
     public function handleGatewayCallback()
     {
+        abort(410, 'Card and fiat deposits are disabled. Use an enabled cryptocurrency deposit method.');
         $paymentDetails = Paystack::getPaymentData();
         //dd($paymentDetails);
         $payamount = $paymentDetails['data']['amount'];

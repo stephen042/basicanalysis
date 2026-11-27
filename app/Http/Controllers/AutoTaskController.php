@@ -27,6 +27,8 @@ class AutoTaskController extends Controller
 
     public function autotopup()
     {
+        app(\App\Services\CompoundInvestmentReminderService::class)->sendDueReminders();
+
         // automatic roi
         $this->automaticRoi();
 

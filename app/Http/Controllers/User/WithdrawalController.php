@@ -34,20 +34,32 @@ class WithdrawalController extends Controller
      */
     public function withdrawamount(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'method_id' => 'required|integer',
+            'method_type' => 'required|in:crypto,currency',
+            'asset' => 'required|string|max:64',
         ]);
 
-        $method = Wdmethod::find($request->method_id);
+        $method = Wdmethod::whereKey($data['method_id'])
+            ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
+            ->whereIn('type', ['withdrawal', 'both'])
+            ->first();
+        $actualType = $method ? strtolower(trim((string) $method->methodtype)) : null;
+        $settings = Settings::find(1);
+        $actualAsset = $actualType === 'crypto'
+            ? $method->name
+            : ($method ? ($method->currency ?: optional($settings)->s_currency ?: 'USD') : null);
 
         if (!$method
-            || strtolower(trim((string) $method->status)) !== 'enabled'
-            || !in_array($method->type, ['withdrawal', 'both'], true)) {
+            || $actualType !== $data['method_type']
+            || !hash_equals((string) $actualAsset, (string) $data['asset'])) {
             return redirect()->route('withdrawals')
                 ->with('message', 'The selected withdrawal method is not available.');
         }
 
         session()->put('withdraw_method_id', $method->id);
+        session()->put('withdrawal_type', $actualType);
+        session()->put('withdrawal_asset', $actualAsset);
         session()->put('withdrawal_step', 'initial');
 
         return redirect()->route('withdrawfunds');
@@ -71,12 +83,26 @@ class WithdrawalController extends Controller
                 ->with('message', 'The selected withdrawal method is no longer available.');
         }
 
-        $methodtype = strtolower(trim((string) $method->methodtype)) === 'crypto' ? 'crypto' : 'currency';
+        $methodtype = strtolower(trim((string) $method->methodtype));
+        if (!in_array($methodtype, ['crypto', 'currency'], true)) {
+            return redirect()->route('withdrawals')
+                ->with('message', 'The configured withdrawal asset type is invalid.');
+        }
+        $settings = Settings::find(1);
+        $asset = $methodtype === 'crypto'
+            ? $method->name
+            : ($method->currency ?: optional($settings)->s_currency ?: 'USD');
+        if (session('withdrawal_type') !== $methodtype || (string) session('withdrawal_asset') !== (string) $asset) {
+            session()->forget(['withdraw_method_id', 'withdrawal_type', 'withdrawal_asset']);
+            return redirect()->route('withdrawals')
+                ->with('message', 'Your withdrawal selection expired. Please select the asset and payment method again.');
+        }
 
         return view('user.withdraw', [
             'title' => 'Complete Withdrawal Request',
             'method' => $method,
             'methodtype' => $methodtype,
+            'asset' => $asset,
             'default' => $method->defaultpay === 'yes',
         ]);
     }
@@ -167,6 +193,8 @@ class WithdrawalController extends Controller
 
         $validated = $request->validate([
             'method_id' => 'required|integer',
+            'method_type' => 'required|in:crypto,currency',
+            'asset' => 'required|string|max:64',
             'amount' => 'required|numeric|gt:0|max:1000000000',
             'submission_key' => 'required|string|max:64',
             'wallet_address' => 'nullable|string|max:512',
@@ -183,7 +211,20 @@ class WithdrawalController extends Controller
             return redirect()->back()->with('message', 'The selected withdrawal method is not available.');
         }
 
-        $isCrypto = strtolower(trim((string) $method->methodtype)) === 'crypto';
+        $methodtype = strtolower(trim((string) $method->methodtype));
+        if (!in_array($methodtype, ['crypto', 'currency'], true)) {
+            return redirect()->route('withdrawals')->with('message', 'The configured withdrawal asset type is invalid.');
+        }
+        $isCrypto = $methodtype === 'crypto';
+        $actualType = $isCrypto ? 'crypto' : 'currency';
+        $actualAsset = $isCrypto ? $method->name : ($method->currency ?: (optional($settings)->s_currency ?: 'USD'));
+        if ($actualType !== $validated['method_type']
+            || !hash_equals((string) $actualAsset, (string) $validated['asset'])
+            || (int) session('withdraw_method_id') !== (int) $method->id
+            || session('withdrawal_type') !== $actualType
+            || (string) session('withdrawal_asset') !== (string) $actualAsset) {
+            return redirect()->route('withdrawals')->with('message', 'The selected withdrawal asset changed. Please choose the method again.');
+        }
         $amount = round((float) $validated['amount'], 8);
 
         // Calculate charges on the backend.
@@ -275,7 +316,7 @@ class WithdrawalController extends Controller
         }
 
         // Clear the guided-withdrawal session.
-        session()->forget(['withdrawal_step', 'withdraw_method_id']);
+        session()->forget(['withdrawal_step', 'withdraw_method_id', 'withdrawal_type', 'withdrawal_asset']);
 
         try {
             $this->notificationService->sendWithdrawalRequestNotification(

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CompoundInvestmentTopup extends Model
 {
     protected $fillable = [
-        'compound_investment_id', 'admin_id', 'idempotency_key', 'amount', 'note',
+        'compound_investment_id', 'admin_id', 'idempotency_key', 'amount', 'currency', 'note',
     ];
 
     protected $casts = ['amount' => 'decimal:2'];

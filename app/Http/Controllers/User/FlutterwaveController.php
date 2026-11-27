@@ -27,6 +27,7 @@ class FlutterwaveController extends Controller
     //initialize flutterwave payment
     public function initialize(Request $request)
     {
+        abort(410, 'Card and fiat deposits are disabled. Use an enabled cryptocurrency deposit method.');
         //This generates a payment reference
         $reference = Flutterwave::generateReference();
         $settings = Settings::find(1);
@@ -63,6 +64,7 @@ class FlutterwaveController extends Controller
 
     public function callback()
     {
+        abort(410, 'Card and fiat deposits are disabled. Use an enabled cryptocurrency deposit method.');
         $status = request()->status;
 
         //if payment is successful

@@ -31,6 +31,7 @@ class CompoundInvestmentShowSettingsTest extends TestCase
         Schema::create('wdmethods', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
+            $table->string('methodtype')->nullable();
             $table->string('network')->nullable();
             $table->text('wallet_address')->nullable();
             $table->text('barcode')->nullable();
@@ -44,6 +45,7 @@ class CompoundInvestmentShowSettingsTest extends TestCase
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('payment_method_id')->nullable();
             $table->string('payment_method')->nullable();
+            $table->string('currency', 3)->default('USD');
             $table->string('payment_proof')->nullable();
             $table->decimal('amount', 15, 2);
             $table->unsignedInteger('duration_months');
@@ -73,6 +75,7 @@ class CompoundInvestmentShowSettingsTest extends TestCase
         $userId = DB::table('users')->insertGetId(['name' => 'Investor', 'email' => 'i@example.test']);
         $methodId = DB::table('wdmethods')->insertGetId([
             'name' => 'USDT',
+            'methodtype' => 'crypto',
             'network' => 'TRC20',
             'wallet_address' => 'T-test-wallet',
             'type' => 'both',
@@ -109,7 +112,7 @@ class CompoundInvestmentShowSettingsTest extends TestCase
         $investment = CompoundInvestment::firstOrFail();
 
         // Before the fix this threw: Class "App\Http\Controllers\Admin\Settings" not found
-        $view = (new CompoundInvestmentController())->show($investment->id);
+        $view = app(CompoundInvestmentController::class)->show($investment->id);
 
         $this->assertSame('$', $view->getData()['currency']);
         $this->assertSame('USDT', $view->getData()['investment']->payment_method);

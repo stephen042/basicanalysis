@@ -106,6 +106,8 @@ Route::middleware(['auth:sanctum', 'verified'])->prefix('dashboard')->group(func
 		Route::get('compound-investment', [CompoundInvestmentController::class, 'create'])->name('compound-investment.create');
 		Route::post('compound-investment', [CompoundInvestmentController::class, 'store'])->name('compound-investment.store');
 		Route::get('compound-investment/history', [CompoundInvestmentController::class, 'history'])->name('compound-investment.history');
+		Route::get('compound-investment/{id}/recurring-topup', [CompoundInvestmentController::class, 'recurringTopup'])->name('compound-investment.recurring-topup');
+		Route::post('compound-investment/{id}/recurring-topup', [CompoundInvestmentController::class, 'startRecurringTopup'])->name('compound-investment.recurring-topup.start');
 		Route::get('compound-investment/{id}/payment', [CompoundInvestmentController::class, 'payment'])->name('compound-investment.payment');
 		Route::post('compound-investment/{id}/payment-proof', [CompoundInvestmentController::class, 'uploadProof'])->name('compound-investment.payment-proof');
 		Route::get('compound-investment/{id}', [CompoundInvestmentController::class, 'show'])->name('compound-investment.show');

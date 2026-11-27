@@ -153,6 +153,8 @@
                             ]) }})">
                             @csrf
                             <input type="hidden" name="method_id" value="{{ $method->id }}">
+                            <input type="hidden" name="method_type" value="{{ $methodtype }}">
+                            <input type="hidden" name="asset" value="{{ $asset }}">
                             <input type="hidden" name="submission_key" value="{{ \Illuminate\Support\Str::random(48) }}">
 
                             <div>

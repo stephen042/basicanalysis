@@ -21,4 +21,9 @@ class Deposit extends Model
     {
         return $this->belongsTo(Wdmethod::class, 'payment_method_id');
     }
+
+    public function compoundContribution()
+    {
+        return $this->hasOne(CompoundInvestmentContribution::class, 'deposit_id');
+    }
 }

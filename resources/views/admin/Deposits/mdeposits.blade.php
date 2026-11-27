@@ -38,6 +38,7 @@
                                             <td>
                                                 {{ $deposit->paymentMethod?->name ?? $deposit->payment_mode }}
                                                 @if($deposit->payment_network)<small class="d-block text-muted">Network: {{ $deposit->payment_network }}</small>@endif
+                                                @if(!empty($hasCompoundContributionTable) && $deposit->compoundContribution)<small class="d-block text-primary">USER RECURRING CONTRIBUTION · Investment #{{ $deposit->compoundContribution->compound_investment_id }}</small>@endif
                                                 @if($deposit->paymentMethod && $deposit->payment_mode && $deposit->payment_mode !== $deposit->paymentMethod->name)
                                                     <small class="d-block text-muted">Processor: {{ $deposit->payment_mode }}</small>
                                                 @endif
@@ -59,7 +60,7 @@
                                                 <a href="{{ url('admin/dashboard/deldeposit') }}/{{ $deposit->id }}"
                                                     class="m-1 btn btn-danger btn-sm">Delete</a>
 
-                                                @if ($deposit->status != 'Processed')
+                                                @if (strtolower((string) $deposit->status) == 'pending')
                                                     <a class="btn btn-primary btn-sm"
                                                         href="{{ url('admin/dashboard/pdeposit') }}/{{ $deposit->id }}">Process</a>
                                                 @endif
@@ -74,6 +75,7 @@
                                             <td>
                                                 {{ $deposit->paymentMethod?->name ?? $deposit->payment_mode }}
                                                 @if($deposit->payment_network)<small class="d-block text-muted">Network: {{ $deposit->payment_network }}</small>@endif
+                                                @if(!empty($hasCompoundContributionTable) && $deposit->compoundContribution)<small class="d-block text-primary">USER RECURRING CONTRIBUTION · Investment #{{ $deposit->compoundContribution->compound_investment_id }}</small>@endif
                                             </td>
                                             <td>
                                                 @if ($deposit->status == 'Processed')

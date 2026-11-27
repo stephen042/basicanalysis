@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Settings;
 use App\Models\Deposit;
+use App\Models\CompoundInvestment;
+use App\Models\CompoundInvestmentContribution;
+use App\Support\SchemaInspector;
 use App\Models\Tp_Transaction;
 use App\Mail\DepositStatus;
 use App\Services\NotificationService;
@@ -13,6 +16,8 @@ use App\Traits\PingServer;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class ManageDepositController extends Controller
 {
@@ -39,7 +44,89 @@ class ManageDepositController extends Controller
     {
         //confirm the users plan
         $deposit = Deposit::where('id', $id)->first();
+        abort_unless($deposit, 404);
         $user = User::where('id', $deposit->user)->first();
+        abort_unless($user, 404);
+
+        // Recurring investment contributions use the existing deposit approval
+        // screen, but are never credited to the user's wallet or deposit total.
+        $contribution = SchemaInspector::hasTable('compound_investment_contributions')
+            ? CompoundInvestmentContribution::where('deposit_id', $deposit->id)->first()
+            : null;
+        if ($contribution) {
+            try {
+                DB::transaction(function () use ($deposit, $contribution) {
+                    $lockedDeposit = Deposit::whereKey($deposit->id)->lockForUpdate()->firstOrFail();
+                    $lockedContribution = CompoundInvestmentContribution::whereKey($contribution->id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                    $investment = CompoundInvestment::whereKey($lockedContribution->compound_investment_id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    if (strtolower((string) $lockedDeposit->status) !== 'pending'
+                        || $lockedContribution->status !== 'pending'
+                        || (int) $lockedDeposit->user !== (int) $investment->user_id
+                        || $investment->status !== 'active'
+                        || $investment->deposit_status !== 'approved') {
+                        throw new \DomainException('This contribution is no longer eligible for approval.');
+                    }
+                    if (abs(round((float) $lockedDeposit->amount * 100) - round((float) $lockedContribution->amount * 100)) > 0) {
+                        throw new \DomainException('The deposit amount does not match the recurring contribution amount.');
+                    }
+                    $method = $lockedDeposit->paymentMethod;
+                    if (!$method
+                        || strtolower(trim((string) $method->methodtype)) !== 'crypto'
+                        || !in_array(strtolower(trim((string) $method->type)), ['deposit', 'both'], true)) {
+                        throw new \DomainException('Recurring contributions must be paid using a configured cryptocurrency method.');
+                    }
+
+                    $approvedAt = now();
+                    $lockedDeposit->status = 'Processed';
+                    $lockedDeposit->save();
+                    $lockedContribution->status = 'approved';
+                    $lockedContribution->approved_at = $approvedAt;
+                    $lockedContribution->reviewed_by = Auth::guard('admin')->id();
+                    $lockedContribution->save();
+
+                    // Advance from the contribution's scheduled period, not the
+                    // approval timestamp, so early payments move the schedule
+                    // forward correctly.
+                    $investment->next_recurring_due_at = $investment->nextRecurringDueAfterContribution(
+                        $lockedContribution,
+                        $approvedAt
+                    );
+                    $investment->save();
+                });
+            } catch (\DomainException $e) {
+                return redirect()->back()->with('message', $e->getMessage());
+            }
+
+            $this->notificationService->create(
+                $user->id,
+                \App\Models\Notification::TYPE_DEPOSIT,
+                'Recurring contribution approved',
+                '$' . number_format((float) $contribution->amount, 2)
+                    . ' recurring contribution for compound investment #' . $contribution->compound_investment_id
+                    . ' has been verified and approved.',
+                ['investment_id' => $contribution->compound_investment_id, 'contribution_id' => $contribution->id],
+                \App\Models\Notification::PRIORITY_NORMAL,
+                route('compound-investment.show', $contribution->compound_investment_id),
+                'fas fa-circle-check'
+            );
+            try {
+                Mail::to($user->email)->send(new DepositStatus($deposit, $user, 'Recurring Contribution Approved', false));
+            } catch (\Throwable $e) {
+                Log::error('Failed to send recurring contribution approval email', [
+                    'error' => $e->getMessage(),
+                    'deposit_id' => $deposit->id,
+                    'contribution_id' => $contribution->id,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Recurring contribution approved. The wallet balance and deposit total were not changed.');
+        }
+
         //get settings
         $settings = Settings::where('id', '=', '1')->first();
 

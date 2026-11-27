@@ -39,6 +39,7 @@ class CompoundInvestmentUsdtTest extends TestCase
         Schema::create('wdmethods', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
+            $table->string('methodtype')->nullable();
             $table->string('network')->nullable();
             $table->text('wallet_address')->nullable();
             $table->string('type')->nullable();
@@ -51,6 +52,8 @@ class CompoundInvestmentUsdtTest extends TestCase
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('payment_method_id')->nullable();
             $table->string('payment_method')->nullable();
+            $table->string('payment_source')->nullable();
+            $table->string('currency', 3)->default('USD');
             $table->string('submission_key', 64)->nullable()->unique();
             $table->string('payment_proof')->nullable();
             $table->decimal('amount', 15, 2);
@@ -68,6 +71,34 @@ class CompoundInvestmentUsdtTest extends TestCase
             $table->text('rejection_reason')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->unsignedBigInteger('completed_by')->nullable();
+            $table->timestamp('next_recurring_due_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('compound_investment_topups', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('compound_investment_id');
+            $table->unsignedBigInteger('admin_id')->nullable();
+            $table->string('idempotency_key', 64)->nullable()->unique();
+            $table->string('currency', 3)->default('USD');
+            $table->decimal('amount', 15, 2);
+            $table->string('note')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('compound_investment_contributions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('compound_investment_id');
+            $table->unsignedBigInteger('deposit_id')->nullable()->unique();
+            $table->string('idempotency_key', 64)->unique();
+            $table->decimal('amount', 15, 2);
+            $table->string('currency', 3)->default('USD');
+            $table->timestamp('scheduled_for');
+            $table->string('status')->default('pending');
+            $table->text('admin_note')->nullable();
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('rejected_at')->nullable();
+            $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->timestamps();
         });
 
@@ -82,6 +113,7 @@ class CompoundInvestmentUsdtTest extends TestCase
 
         $this->usdtMethodId = DB::table('wdmethods')->insertGetId([
             'name' => 'USDT',
+            'methodtype' => 'crypto',
             'network' => 'TRC20',
             'wallet_address' => 'T-test-usdt-wallet',
             'type' => 'both',
@@ -98,6 +130,8 @@ class CompoundInvestmentUsdtTest extends TestCase
 
     protected function tearDown(): void
     {
+        Schema::dropIfExists('compound_investment_contributions');
+        Schema::dropIfExists('compound_investment_topups');
         Schema::dropIfExists('compound_investments');
         Schema::dropIfExists('tp__transactions');
         Schema::dropIfExists('wdmethods');
@@ -177,7 +211,7 @@ class CompoundInvestmentUsdtTest extends TestCase
             'decision' => 'approve',
         ]);
 
-        $response = (new CompoundInvestmentController())->decide($request, $investment);
+        $response = app(CompoundInvestmentController::class)->decide($request, $investment);
         $this->assertInstanceOf(RedirectResponse::class, $response);
 
         $this->assertSame('pending', $investment->fresh()->status);
@@ -205,7 +239,7 @@ class CompoundInvestmentUsdtTest extends TestCase
             'decision' => 'approve',
         ]);
 
-        (new CompoundInvestmentController())->decide($request, $investment);
+        app(CompoundInvestmentController::class)->decide($request, $investment);
 
         $this->assertSame('active', $investment->fresh()->status);
         $this->assertSame('approved', $investment->fresh()->deposit_status);
@@ -238,8 +272,8 @@ class CompoundInvestmentUsdtTest extends TestCase
         $investment = CompoundInvestment::firstOrFail();
         $this->assertSame('Subscription Balance', $investment->payment_method);
         $this->assertNull($investment->payment_method_id);
-        $this->assertSame('active', $investment->status);
-        $this->assertSame('approved', $investment->deposit_status);
+        $this->assertSame('pending', $investment->status);
+        $this->assertSame('pending', $investment->deposit_status);
         $this->assertSame('350.00', $user->fresh()->account_bal);
         $this->assertSame('20.00', $user->fresh()->roi);
         $this->assertSame('300.00', $user->fresh()->trading_balance);

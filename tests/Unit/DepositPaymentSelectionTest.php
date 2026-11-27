@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -85,6 +86,13 @@ class DepositPaymentSelectionTest extends TestCase
             $table->string('proof')->nullable();
             $table->timestamps();
         });
+        Schema::create('compound_investment_contributions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('compound_investment_id');
+            $table->unsignedBigInteger('deposit_id')->nullable();
+            $table->string('status')->default('pending');
+            $table->timestamps();
+        });
 
         DB::table('settings')->insert([
             'id' => 1,
@@ -110,6 +118,7 @@ class DepositPaymentSelectionTest extends TestCase
             'status' => 'enabled',
             'network' => 'TRC20',
             'wallet_address' => 'T-trc20-address',
+            'img_url' => 'https://assets.example.test/usdt.png',
         ]);
         $this->erc20MethodId = DB::table('wdmethods')->insertGetId([
             'name' => 'USDT',
@@ -118,11 +127,13 @@ class DepositPaymentSelectionTest extends TestCase
             'status' => 'enabled',
             'network' => 'ERC20',
             'wallet_address' => '0x-erc20-address',
+            'img_url' => 'https://assets.example.test/usdt.png',
         ]);
     }
 
     protected function tearDown(): void
     {
+        Schema::dropIfExists('compound_investment_contributions');
         Schema::dropIfExists('deposits');
         Schema::dropIfExists('wdmethods');
         Schema::dropIfExists('settings_conts');
@@ -132,16 +143,41 @@ class DepositPaymentSelectionTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_deposit_page_groups_all_enabled_configured_methods_by_category(): void
+    public function test_deposit_page_only_exposes_configured_crypto_assets_and_networks(): void
     {
+        DB::table('wdmethods')->insert([
+            'name' => 'Bitcoin',
+            'methodtype' => 'crypto',
+            'type' => 'deposit',
+            'status' => 'enabled',
+            'network' => 'Bitcoin',
+            'wallet_address' => 'bitcoin-address',
+            'img_url' => 'https://assets.example.test/bitcoin.png?1696501400',
+        ]);
         $user = User::create(['name' => 'Depositor', 'email' => 'depositor@example.test']);
         $this->actingAs($user);
 
         $view = (new ViewsController())->deposits();
         $data = $view->getData();
 
-        $this->assertSame(['Bank Transfer'], $data['fiatMethods']->pluck('name')->all());
-        $this->assertSame(['TRC20', 'ERC20'], $data['cryptoMethods']->pluck('network')->all());
+        $this->assertSame(['Bitcoin', 'USDT'], $data['cryptoAssets']->pluck('name')->all());
+        $this->assertSame('BTC', $data['cryptoAssets']->first()['ticker']);
+        $this->assertSame('https://assets.example.test/bitcoin.png?1696501400', $data['cryptoAssets']->first()['image']);
+        $usdtAsset = $data['cryptoAssets']->firstWhere('name', 'USDT');
+        $this->assertSame('USDT', $usdtAsset['ticker']);
+        $this->assertSame('https://assets.example.test/usdt.png', $usdtAsset['image']);
+        $this->assertSame(['ERC20', 'TRC20'], $usdtAsset['methods']->pluck('network')->all());
+        $this->assertArrayNotHasKey('fiatMethods', $data);
+        $view->with('errors', new \Illuminate\Support\ViewErrorBag());
+        $html = str_replace('\\/', '/', $view->render());
+        $this->assertStringContainsString('https://assets.example.test/bitcoin.png', $html);
+        $this->assertStringContainsString('https://assets.example.test/usdt.png', $html);
+        $this->assertStringContainsString('BTC', $html);
+        $depositPage = File::get(resource_path('views/user/deposits.blade.php'));
+        $this->assertStringContainsString('Select a cryptocurrency', $depositPage);
+        $this->assertStringContainsString('asset.imageFailed = true', $depositPage);
+        $this->assertStringContainsString('fas fa-coins', $depositPage);
+        $this->assertStringNotContainsString('Currency / Fiat', $depositPage);
         $this->assertSame('T-trc20-address', $data['depositMethodDetails'][(string) $this->trc20MethodId]['address']);
         $this->assertSame('0x-erc20-address', $data['depositMethodDetails'][(string) $this->erc20MethodId]['address']);
     }
@@ -212,6 +248,13 @@ class DepositPaymentSelectionTest extends TestCase
             ->post(route('newdeposit'), [
                 'amount' => 50,
                 'payment_method_id' => $withdrawalOnlyId,
+            ])
+            ->assertNotFound();
+
+        $this->actingAs($user, 'sanctum')
+            ->post(route('newdeposit'), [
+                'amount' => 50,
+                'payment_method_id' => $this->fiatMethodId,
             ])
             ->assertNotFound();
 

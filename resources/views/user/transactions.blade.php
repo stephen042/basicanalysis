@@ -128,8 +128,12 @@
                         <tbody class="divide-y bg-dark-200 divide-dark-300">
                             @forelse ($t_history as $history)
                                 @php
+                                    $compoundPlan = strtolower((string) $history->plan);
                                     $isCompoundInvestmentTransaction = $history->type === 'Compound Investment'
-                                        || ($history->type === 'ROI' && strpos(strtolower((string) $history->plan), 'compound investment top-up #') === 0);
+                                        || ($history->type === 'ROI' && (
+                                            strpos($compoundPlan, 'compound investment top-up #') === 0
+                                            || strpos($compoundPlan, 'compound investment profit #') === 0
+                                        ));
                                     $transactionCurrency = $isCompoundInvestmentTransaction ? '$' : Auth::user()->currency;
                                 @endphp
                                 <tr class="hover:bg-dark-100">

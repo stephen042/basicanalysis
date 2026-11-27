@@ -130,6 +130,8 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 		Route::get('/{investment}', [CompoundInvestmentController::class, 'show'])->name('show');
 		Route::post('/{investment}/decision', [CompoundInvestmentController::class, 'decide'])->name('decision');
 		Route::post('/{investment}/topup', [CompoundInvestmentController::class, 'topup'])->name('topup');
+		Route::post('/contributions/{contribution}/approve', [CompoundInvestmentController::class, 'approveContribution'])->name('contributions.approve');
+		Route::post('/contributions/{contribution}/reject', [CompoundInvestmentController::class, 'rejectContribution'])->name('contributions.reject');
 		Route::post('/{investment}/complete', [CompoundInvestmentController::class, 'complete'])->name('complete');
 	});
 
@@ -243,6 +245,7 @@ Route::middleware(['isadmin', '2fa'])->prefix('admin')->group(function () {
 	Route::get('dashboard/kyc-applications', [HomeController::class, 'kyc'])->name('kyc');
 	Route::post('dashboard/processkyc', [KycController::class, 'processKyc'])->name('processkyc');
 	Route::get('dashboard/kyc-application/{id}', [HomeController::class, 'viewKycApplication'])->name('viewkyc');
+	Route::get('dashboard/kyc-application/{id}/image/{side}', [KycController::class, 'image'])->name('admin.kyc.image');
 
 
 	Route::get('dashboard/uublock/{id}', [ManageUsersController::class, 'ublock']);

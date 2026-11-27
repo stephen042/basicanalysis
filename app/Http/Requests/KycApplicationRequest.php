@@ -26,7 +26,7 @@ class KycApplicationRequest extends FormRequest
         return [
             'first_name' => 'required|max:255',
             'last_name' => 'required',
-            'email' => 'required|unique:kycs,email',
+            'email' => 'required|email|max:255|unique:kycs,email',
             'phone_number' => 'required',
             'dob' => 'required',
             'social_media' => 'required',
@@ -34,9 +34,9 @@ class KycApplicationRequest extends FormRequest
             'city' => 'required',
             'state' => 'required',
             'country' => 'required',
-            'document_type' => 'required',
-            'frontimg' => 'required',
-            'backimg' => 'required',
+            'document_type' => 'required|in:Int\'l Passport,National ID,Drivers License',
+            'frontimg' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'backimg' => 'required_if:document_type,National ID,Drivers License|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
     }
 }

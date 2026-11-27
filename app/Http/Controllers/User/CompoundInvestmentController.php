@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\QueryException;
 use App\Support\SchemaInspector;
+use App\Models\CompoundInvestmentContribution;
+use Illuminate\Support\Str;
+use App\Models\Settings;
+use Illuminate\Support\Facades\Mail;
 
 class CompoundInvestmentController extends Controller
 {
@@ -24,6 +28,7 @@ class CompoundInvestmentController extends Controller
             'title' => 'Start Compounding',
             'methods' => $methods,
             'performanceRate' => (float) (Auth::user()->trading_profit_rate ?: 0),
+            'monthlyReturn' => (float) config('compound.monthly_return', 27.8),
             'currency' => '$',
             'subscriptionBalance' => (float) Auth::user()->account_bal,
             'subscriptionBalanceCurrency' => Auth::user()->currency ?: '$',
@@ -42,10 +47,13 @@ class CompoundInvestmentController extends Controller
             'submission_key' => 'required|string|max:64',
         ]);
 
-        if (!SchemaInspector::hasColumn('compound_investments', 'submission_key')) {
-            return back()
-                ->with('error', 'Compound investment database upgrade is pending. No payment was taken; please retry after the upgrade is applied.')
-                ->withInput();
+        $requiredInvestmentColumns = ['submission_key', 'payment_source', 'currency', 'next_recurring_due_at'];
+        foreach ($requiredInvestmentColumns as $requiredColumn) {
+            if (!SchemaInspector::hasColumn('compound_investments', $requiredColumn)) {
+                return back()
+                    ->with('error', 'Compound investment database upgrade is pending. No payment was taken; please retry after the upgrade is applied.')
+                    ->withInput();
+            }
         }
 
         $paymentSource = $data['payment_source'];
@@ -69,6 +77,7 @@ class CompoundInvestmentController extends Controller
                 if ($paymentSource === 'direct_deposit') {
                     $method = Wdmethod::whereKey($paymentMethodId)
                         ->whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
+                        ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
                         ->whereIn('type', ['deposit', 'both'])
                         ->where('status', 'enabled')
                         ->lockForUpdate()
@@ -90,22 +99,21 @@ class CompoundInvestmentController extends Controller
                     'user_id' => $user->id,
                     'payment_method_id' => $method ? $method->id : null,
                     'payment_method' => $method ? $method->name : 'Subscription Balance',
+                    'payment_source' => $paymentSource,
                     'submission_key' => $idempotencyKey,
                     'amount' => $amount,
+                    'currency' => 'USD',
                     'duration_months' => $data['duration_months'],
-                    'monthly_return' => 27.8,
+                    'monthly_return' => (float) config('compound.monthly_return', 27.8),
                     // Source this from the existing account setting; never trust
                     // a client-supplied performance rate.
                     'performance_rate' => (float) ($user->trading_profit_rate ?: 0),
                     'recurring_amount' => round((float) ($data['recurring_amount'] ?? 0), 2),
                     'recurring_frequency' => $data['recurring_frequency'],
-                    'deposit_status' => $paymentSource === 'subscription_balance' ? 'approved' : 'pending',
-                    'status' => $paymentSource === 'subscription_balance' ? 'active' : 'pending',
-                    'approved_at' => $paymentSource === 'subscription_balance' ? $now : null,
-                    'start_date' => $paymentSource === 'subscription_balance' ? $now : null,
-                    'expected_completion_at' => $paymentSource === 'subscription_balance'
-                        ? $now->copy()->addMonths((int) $data['duration_months'])
-                        : null,
+                    // All applications remain pending until an administrator
+                    // explicitly approves them, including balance-funded ones.
+                    'deposit_status' => 'pending',
+                    'status' => 'pending',
                 ]);
 
                 if ($paymentSource === 'subscription_balance') {
@@ -139,7 +147,7 @@ class CompoundInvestmentController extends Controller
 
         if ($paymentSource === 'subscription_balance') {
             return redirect()->route('compound-investment.show', $investment)
-                ->with('success', 'Investment paid from Subscription Balance and activated.');
+                ->with('success', 'Your balance has been reserved. The investment will activate after admin approval.');
         }
 
         return redirect()->route('compound-investment.payment', $investment)
@@ -202,6 +210,7 @@ class CompoundInvestmentController extends Controller
 
         $method = Wdmethod::whereKey($data['payment_method_id'])
             ->whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
+            ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
             ->whereIn('type', ['deposit', 'both'])
             ->where('status', 'enabled')
             ->firstOrFail();
@@ -247,6 +256,11 @@ class CompoundInvestmentController extends Controller
         $investment = CompoundInvestment::where('user_id', Auth::id())
             ->with(['topups.admin', 'paymentMethod'])
             ->findOrFail($id);
+        if (SchemaInspector::hasTable('compound_investment_contributions')) {
+            $investment->load(['contributions.deposit', 'contributions.reviewer']);
+        } else {
+            $investment->setRelation('contributions', collect());
+        }
 
         return view('user.compound-investment-show', [
             'title' => 'Compound Investment',
@@ -257,14 +271,216 @@ class CompoundInvestmentController extends Controller
 
     public function history()
     {
+        $query = CompoundInvestment::where('user_id', Auth::id())->with(['topups']);
+        if (SchemaInspector::hasTable('compound_investment_contributions')) {
+            $query->with('contributions');
+        }
+        $investments = $query->latest()->paginate(15);
+        if (!SchemaInspector::hasTable('compound_investment_contributions')) {
+            $investments->getCollection()->each(function ($investment) {
+                $investment->setRelation('contributions', collect());
+            });
+        }
+
+        // Keep every active recurring plan visible as a prominent top-up card,
+        // independent of the paginated history table below it.
+        $activeRecurringQuery = CompoundInvestment::where('user_id', Auth::id())
+            ->where('status', 'active')
+            ->where('deposit_status', 'approved')
+            ->where('recurring_amount', '>', 0)
+            ->orderBy('next_recurring_due_at');
+        if (SchemaInspector::hasTable('compound_investment_contributions')) {
+            $activeRecurringQuery->with('contributions');
+        }
+        $activeRecurring = $activeRecurringQuery->get();
+        if (!SchemaInspector::hasTable('compound_investment_contributions')) {
+            $activeRecurring->each(function ($investment) {
+                $investment->setRelation('contributions', collect());
+            });
+        }
+
         return view('user.compound-investment-history', [
             'title' => 'Compound Investment History',
-            'investments' => CompoundInvestment::where('user_id', Auth::id())
-                ->with('topups')
-                ->latest()
-                ->paginate(15),
+            'investments' => $investments,
+            'activeRecurring' => $activeRecurring,
             'currency' => '$',
         ]);
+    }
+
+    public function recurringTopup($id)
+    {
+        if (!SchemaInspector::hasTable('compound_investment_contributions')) {
+            return redirect()->route('compound-investment.history')
+                ->with('error', 'Recurring contribution upgrades are pending. Please try again after maintenance.');
+        }
+
+        $investment = CompoundInvestment::where('user_id', Auth::id())
+            ->with(['contributions.deposit'])
+            ->findOrFail($id);
+
+        $dueAt = $investment->next_recurring_due_at ?: $investment->next_recurring_due;
+        $pendingPayment = $investment->contributions
+            ->first(function ($contribution) {
+                return $contribution->status === 'pending'
+                    && ($contribution->deposit_id || $contribution->balance_debited);
+            });
+        if ($pendingPayment) {
+            return redirect()->route('compound-investment.show', $investment)
+                ->with('info', 'Your recurring contribution payment is already submitted and awaiting admin review.');
+        }
+        if ($investment->status !== 'active'
+            || $investment->deposit_status !== 'approved'
+            || (float) $investment->recurring_amount <= 0) {
+            return redirect()->route('compound-investment.show', $investment)
+                ->with('error', 'This investment is not eligible for a recurring contribution.');
+        }
+
+        return view('user.compound-investment-recurring', [
+            'title' => 'Make Recurring Top-up',
+            'investment' => $investment,
+            'methods' => $this->enabledCryptoMethods(),
+            'currency' => '$',
+            'dueAt' => $dueAt ?: now(),
+            'subscriptionBalance' => (float) Auth::user()->account_bal,
+            'subscriptionBalanceCurrency' => Auth::user()->currency ?: '$',
+        ]);
+    }
+
+    public function startRecurringTopup(Request $request, $id)
+    {
+        $data = $request->validate([
+            'payment_source' => 'nullable|in:direct_deposit,subscription_balance',
+            'payment_method_id' => 'nullable|required_if:payment_source,direct_deposit|integer|exists:wdmethods,id',
+        ]);
+        $paymentSource = $data['payment_source']
+            ?? (!empty($data['payment_method_id']) ? 'direct_deposit' : null);
+        if (!$paymentSource) {
+            return back()->withErrors(['payment_source' => 'Choose Deposit or Subscription Balance.']);
+        }
+
+        $requiredContributionColumns = ['payment_method', 'balance_debited'];
+        foreach ($requiredContributionColumns as $column) {
+            if (!SchemaInspector::hasColumn('compound_investment_contributions', $column)) {
+                return redirect()->route('compound-investment.show', $id)
+                    ->with('error', 'Recurring payment database upgrade is pending. No payment was taken.');
+            }
+        }
+
+        $method = null;
+        if ($paymentSource === 'direct_deposit') {
+            $method = Wdmethod::whereKey($data['payment_method_id'])
+                ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+                ->whereIn('type', ['deposit', 'both'])
+                ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
+                ->firstOrFail();
+        }
+
+        try {
+            $contribution = DB::transaction(function () use ($id, $method, $paymentSource) {
+                $investment = CompoundInvestment::where('user_id', Auth::id())
+                    ->whereKey($id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $dueAt = $investment->next_recurring_due_at ?: $investment->next_recurring_due;
+                // The schedule is a reminder, not a payment lock. Early
+                // submissions are assigned to the upcoming scheduled period.
+                $scheduledFor = $dueAt ?: now();
+
+                if ($investment->status !== 'active'
+                    || $investment->deposit_status !== 'approved'
+                    || (float) $investment->recurring_amount <= 0) {
+                    throw new \DomainException('This investment is not currently eligible for a recurring contribution.');
+                }
+
+                $pending = CompoundInvestmentContribution::where('compound_investment_id', $investment->id)
+                    ->where('scheduled_for', $scheduledFor)
+                    ->where('status', 'pending')
+                    ->latest('id')
+                    ->first();
+
+                if ($pending && $pending->deposit_id) {
+                    throw new \DomainException('A recurring contribution for this due period has already been submitted and is awaiting admin review.');
+                }
+
+                if ($pending && $pending->balance_debited) {
+                    throw new \DomainException('A Subscription Balance contribution for this due period is already awaiting admin review.');
+                }
+
+                $contribution = $pending ?: CompoundInvestmentContribution::create([
+                    'compound_investment_id' => $investment->id,
+                    'idempotency_key' => Str::random(64),
+                    'amount' => $investment->recurring_amount,
+                    'currency' => 'USD',
+                    'scheduled_for' => $scheduledFor,
+                    'status' => 'pending',
+                ]);
+
+                if ($paymentSource === 'subscription_balance') {
+                    $user = \App\Models\User::whereKey(Auth::id())->lockForUpdate()->firstOrFail();
+                    $amountCents = (int) round((float) $contribution->amount * 100);
+                    $availableCents = (int) round((float) $user->account_bal * 100);
+                    if ($availableCents < $amountCents) {
+                        throw new \DomainException(
+                            'Insufficient Subscription Balance. Fund your account or choose Deposit.'
+                        );
+                    }
+
+                    $user->account_bal = ($availableCents - $amountCents) / 100;
+                    $user->save();
+                    Tp_Transaction::create([
+                        'user' => $user->id,
+                        'plan' => 'Compound investment recurring contribution #' . $investment->id,
+                        'amount' => -($amountCents / 100),
+                        'type' => 'Compound Investment',
+                    ]);
+                    $contribution->payment_method = 'Subscription Balance';
+                    $contribution->balance_debited = true;
+                    $contribution->save();
+                } else {
+                    $contribution->payment_method = 'Deposit';
+                    $contribution->balance_debited = false;
+                    $contribution->save();
+                }
+
+                return $contribution;
+            });
+        } catch (\DomainException $e) {
+            return redirect()->route('compound-investment.show', $id)->with('error', $e->getMessage());
+        }
+
+        if ($paymentSource === 'subscription_balance') {
+            $settings = Settings::find(1);
+            if ($settings && filter_var($settings->contact_email, FILTER_VALIDATE_EMAIL)) {
+                try {
+                    Mail::raw(
+                        "New compound investment recurring top-up awaiting review\n"
+                        . "User: " . Auth::user()->name . " (" . Auth::user()->email . ")\n"
+                        . "Investment reference: #{$id}\n"
+                        . "Amount: $" . number_format((float) $contribution->amount, 2) . "\n"
+                        . "Payment method: Subscription Balance\n"
+                        . "Submitted: " . now()->format('M j, Y H:i'),
+                        function ($mail) use ($settings) {
+                            $mail->to($settings->contact_email)
+                                ->subject('Recurring compound contribution awaiting approval');
+                        }
+                    );
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+
+            return redirect()->route('compound-investment.show', $id)
+                ->with('success', 'Your Subscription Balance payment was submitted and is awaiting admin approval.');
+        }
+
+        $request->session()->put('compound_contribution_id', $contribution->id);
+        $request->session()->put('amount', (float) $contribution->amount);
+        $request->session()->put('payment_mode', $method->name);
+        $request->session()->put('payment_method_id', $method->id);
+        $request->session()->put('payment_network', $method->network);
+        $request->session()->put('intent', null);
+
+        return redirect()->route('payment')->with('info', 'Submit the payment proof to send this contribution for admin review.');
     }
 
     private function paymentInstructions($method)
@@ -298,15 +514,28 @@ class CompoundInvestmentController extends Controller
     private function enabledUsdtMethods()
     {
         return Wdmethod::whereRaw('LOWER(TRIM(name)) = ?', ['usdt'])
+            ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
             ->whereIn('type', ['deposit', 'both'])
             ->where('status', 'enabled')
             ->orderBy('name')
             ->get();
     }
 
+    private function enabledCryptoMethods()
+    {
+        return Wdmethod::whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+            ->whereIn('type', ['deposit', 'both'])
+            ->where('status', 'enabled')
+            ->orderBy('name')
+            ->orderBy('network')
+            ->get();
+    }
+
     private function isUsdtMethod($method): bool
     {
-        return $method && strtoupper(trim((string) $method->name)) === 'USDT';
+        return $method
+            && strtoupper(trim((string) $method->name)) === 'USDT'
+            && strtolower(trim((string) $method->methodtype)) === 'crypto';
     }
 
     private function investmentCurrency(): string

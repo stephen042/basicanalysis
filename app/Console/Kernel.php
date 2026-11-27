@@ -55,6 +55,12 @@ class Kernel extends ConsoleKernel
         
         // Process expired copy trading subscriptions and return investments
         $schedule->job(new \App\Jobs\ProcessExpiredCopySubscriptionsJob)->everyFiveMinutes();
+
+        // User recurring compound contributions are reminders only; no funds
+        // are debited. Unique investment/period records prevent duplicates.
+        $schedule->call(function () {
+            app(\App\Services\CompoundInvestmentReminderService::class)->sendDueReminders();
+        })->hourly();
         
         //   $schedule->job(new \App\Jobs\ResolveExpiredTradesJob)->everyMinute();
         // Generate expert trades every 30 minutes during trading hours

@@ -42,7 +42,23 @@ class CryptoWithdaw extends Component
     public function withdraw()
     {
         $settings = Settings::where('id', '1')->first();
-        $method = Wdmethod::where('name', $this->payment_mode)->first();
+        $method = Wdmethod::whereKey(session('withdraw_method_id'))
+            ->where('name', $this->payment_mode)
+            ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+            ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
+            ->whereIn('type', ['withdrawal', 'both'])
+            ->first();
+        if (!$method
+            || session('withdrawal_type') !== 'crypto'
+            || (string) session('withdrawal_asset') !== (string) $method->name) {
+            session()->flash('error', 'Your cryptocurrency withdrawal selection changed. Please select the asset and method again.');
+            return;
+        }
+        if (!is_numeric($this->amount) || (float) $this->amount <= 0) {
+            session()->flash('error', 'Enter a valid withdrawal amount.');
+            return;
+        }
+        $this->amount = round((float) $this->amount, 8);
         //get user
         $user = User::where('id', Auth::user()->id)->first();
 
@@ -62,6 +78,8 @@ class CryptoWithdaw extends Component
             session()->flash('error', 'Sorry, your account balance is insufficient for this request.');
         } elseif ($this->amount < $method->minimum) {
             session()->flash("error", "Sorry, The minimum amount you can withdraw is $settings->currency$method->minimum, please try another payment method.");
+        } elseif ($method->maximum && (float) $method->maximum > 0 && $this->amount > (float) $method->maximum) {
+            session()->flash('error', 'The requested amount exceeds the configured maximum.');
         } else {
 
             $http_response = $this->payout($this->amount, $this->RandomStringGenerator(10), $user->email);

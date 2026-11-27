@@ -5,7 +5,7 @@
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Account funding</p>
             <h1 class="mt-2 text-2xl font-bold text-white md:text-3xl">Fund Your Account</h1>
-            <p class="mt-1 text-sm text-gray-400">Choose a deposit category first, then select an admin-configured payment method.</p>
+            <p class="mt-1 text-sm text-gray-400">Choose a cryptocurrency, then select its configured network and payment details.</p>
         </div>
 
         <x-danger-alert />
@@ -19,94 +19,56 @@
                 <form action="{{ route('newdeposit') }}" method="post" id="submitpaymentform" class="space-y-6">
                     @csrf
                     <input type="hidden" name="payment_method_id" :value="selectedMethodId">
-                    <input type="hidden" name="deposit_category" :value="selectedCategory">
 
                     <section class="rounded-2xl border border-dark-100 bg-dark-200 p-5 sm:p-6">
                         <div class="mb-4">
                             <p class="text-xs font-semibold uppercase tracking-wider text-primary">Step 1</p>
-                            <h2 class="mt-1 text-lg font-semibold text-white">Choose deposit type</h2>
-                            <p class="mt-1 text-sm text-gray-400">Select fiat/currency or cryptocurrency to see the available configured methods.</p>
+                            <h2 class="mt-1 text-lg font-semibold text-white">Select a cryptocurrency</h2>
+                            <p class="mt-1 text-sm text-gray-400">Only cryptocurrencies enabled by the administrator are available for deposits.</p>
                         </div>
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <button type="button"
-                                @click="chooseCategory('currency')"
-                                :aria-pressed="selectedCategory === 'currency'"
-                                class="flex min-h-24 items-center gap-4 rounded-xl border p-4 text-left transition"
-                                :class="selectedCategory === 'currency' ? 'border-primary bg-primary/10' : 'border-dark-100 bg-dark-100 hover:border-primary/50'">
-                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                    <i class="fas fa-money-bill-transfer text-xl"></i>
-                                </span>
-                                <span>
-                                    <span class="block font-semibold text-white">Currency / Fiat</span>
-                                    <span class="mt-1 block text-xs text-gray-400">Bank transfer and supported fiat methods</span>
-                                </span>
-                            </button>
-                            <button type="button"
-                                @click="chooseCategory('crypto')"
-                                :aria-pressed="selectedCategory === 'crypto'"
-                                class="flex min-h-24 items-center gap-4 rounded-xl border p-4 text-left transition"
-                                :class="selectedCategory === 'crypto' ? 'border-primary bg-primary/10' : 'border-dark-100 bg-dark-100 hover:border-primary/50'">
-                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                    <i class="fab fa-bitcoin text-xl"></i>
-                                </span>
-                                <span>
-                                    <span class="block font-semibold text-white">Cryptocurrency / Crypto</span>
-                                    <span class="mt-1 block text-xs text-gray-400">Admin-configured coins, wallets and networks</span>
-                                </span>
-                            </button>
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                            <template x-for="asset in cryptoAssets" :key="asset.name">
+                                <button type="button" @click="selectAsset(asset.name)"
+                                    :aria-pressed="selectedAsset === asset.name"
+                                    class="rounded-xl border p-4 text-left transition"
+                                    :class="selectedAsset === asset.name ? 'border-primary bg-primary/10' : 'border-dark-100 bg-dark-100 hover:border-primary/50'">
+                                     <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-dark-300 font-bold text-primary">
+                                         <img x-show="asset.image && !asset.imageFailed" :src="asset.image" :alt="asset.name + ' logo'" x-on:error="asset.imageFailed = true" class="h-full w-full object-contain">
+                                         <span x-show="!asset.image || asset.imageFailed" x-text="asset.ticker || '◆'" class="text-xs"></span>
+                                     </span>
+                                     <span class="mt-3 block font-semibold text-white" x-text="asset.name"></span>
+                                     <span class="mt-1 block text-xs font-semibold text-primary" x-text="asset.ticker"></span>
+                                    <span class="mt-1 block text-xs text-gray-400" x-text="asset.methods.length + (asset.methods.length === 1 ? ' network' : ' networks')"></span>
+                                </button>
+                            </template>
                         </div>
+                        <p class="rounded-lg bg-dark-100 p-4 text-sm text-gray-400" x-show="cryptoAssets.length === 0">No enabled cryptocurrency deposit methods are configured.</p>
                     </section>
 
-                    <section x-show="selectedCategory" x-cloak class="rounded-2xl border border-dark-100 bg-dark-200 p-5 sm:p-6">
+                    <section x-show="selectedAsset" x-cloak class="rounded-2xl border border-dark-100 bg-dark-200 p-5 sm:p-6">
                         <div class="mb-4">
                             <p class="text-xs font-semibold uppercase tracking-wider text-primary">Step 2</p>
-                            <h2 class="mt-1 text-lg font-semibold text-white">Select a payment method</h2>
+                            <h2 class="mt-1 text-lg font-semibold text-white">Select the <span x-text="selectedAsset"></span> network</h2>
                         </div>
 
-                        <div x-show="selectedCategory === 'currency'" class="grid gap-3 sm:grid-cols-2">
-                            @forelse($fiatMethods as $method)
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <template x-for="method in selectedAssetMethods" :key="method.id">
                                 <button type="button"
-                                    @click="selectMethod('{{ $method->id }}')"
-                                    :aria-pressed="selectedMethodId === '{{ $method->id }}'"
+                                    @click="selectMethod(method.id)"
+                                    :aria-pressed="selectedMethodId === String(method.id)"
                                     class="flex min-h-20 items-center gap-3 rounded-xl border p-4 text-left transition"
-                                    :class="selectedMethodId === '{{ $method->id }}' ? 'border-primary bg-primary/10' : 'border-dark-100 bg-dark-100 hover:border-primary/50'">
-                                    @if($method->img_url)
-                                        <img src="{{ $method->img_url }}" alt="" class="h-10 w-10 shrink-0 rounded-full object-contain">
-                                    @else
-                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-dark-300 text-primary"><i class="fas fa-building-columns"></i></span>
-                                    @endif
-                                    <span class="min-w-0 flex-1">
-                                        <span class="block font-semibold text-white">{{ $method->name }}</span>
-                                        <span class="mt-1 block text-xs text-gray-400">{{ $method->network ?: ucfirst($method->methodtype) }}</span>
+                                    :class="selectedMethodId === String(method.id) ? 'border-primary bg-primary/10' : 'border-dark-100 bg-dark-100 hover:border-primary/50'">
+                                     <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-dark-300 text-primary">
+                                         <img x-show="method.image && !method.imageFailed" :src="method.image" :alt="selectedAsset + ' logo'" x-on:error="method.imageFailed = true" class="h-full w-full object-contain">
+                                         <i x-show="!method.image || method.imageFailed" class="fas fa-coins" aria-hidden="true"></i>
+                                     </span>
+                                     <span class="min-w-0 flex-1">
+                                         <span class="block font-semibold text-white" x-text="selectedAsset + ' (' + method.symbol + ')'"></span>
+                                         <span class="mt-1 block text-xs text-gray-400" x-text="method.network || 'Default network'"></span>
                                     </span>
-                                    <i x-show="selectedMethodId === '{{ $method->id }}'" class="fas fa-check-circle text-primary" aria-hidden="true"></i>
+                                    <i x-show="selectedMethodId === String(method.id)" class="fas fa-check-circle text-primary" aria-hidden="true"></i>
                                 </button>
-                            @empty
-                                <p class="rounded-lg bg-dark-100 p-4 text-sm text-gray-400 sm:col-span-2">No enabled fiat deposit methods are configured.</p>
-                            @endforelse
-                        </div>
-
-                        <div x-show="selectedCategory === 'crypto'" x-cloak class="grid gap-3 sm:grid-cols-2">
-                            @forelse($cryptoMethods as $method)
-                                <button type="button"
-                                    @click="selectMethod('{{ $method->id }}')"
-                                    :aria-pressed="selectedMethodId === '{{ $method->id }}'"
-                                    class="flex min-h-20 items-center gap-3 rounded-xl border p-4 text-left transition"
-                                    :class="selectedMethodId === '{{ $method->id }}' ? 'border-primary bg-primary/10' : 'border-dark-100 bg-dark-100 hover:border-primary/50'">
-                                    @if($method->img_url)
-                                        <img src="{{ $method->img_url }}" alt="" class="h-10 w-10 shrink-0 rounded-full object-contain">
-                                    @else
-                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-dark-300 text-primary"><i class="fab fa-bitcoin"></i></span>
-                                    @endif
-                                    <span class="min-w-0 flex-1">
-                                        <span class="block font-semibold text-white">{{ $method->name }}</span>
-                                        <span class="mt-1 block text-xs text-gray-400">{{ $method->network ?: 'Network shown in payment details' }}</span>
-                                    </span>
-                                    <i x-show="selectedMethodId === '{{ $method->id }}'" class="fas fa-check-circle text-primary" aria-hidden="true"></i>
-                                </button>
-                            @empty
-                                <p class="rounded-lg bg-dark-100 p-4 text-sm text-gray-400 sm:col-span-2">No enabled cryptocurrency deposit methods are configured.</p>
-                            @endforelse
+                            </template>
                         </div>
                     </section>
 
@@ -116,16 +78,18 @@
                         <template x-if="selectedMethod">
                             <div class="mt-4 space-y-5">
                                 <div class="flex items-center gap-3">
-                                    <template x-if="selectedMethod.image">
-                                        <img :src="selectedMethod.image" :alt="selectedMethod.name" class="h-10 w-10 rounded-full object-contain">
-                                    </template>
-                                    <div>
-                                        <p class="font-semibold text-white" x-text="selectedMethod.name"></p>
-                                        <p class="text-xs text-gray-400" x-text="selectedMethod.network ? 'Network: ' + selectedMethod.network : (selectedMethod.methodtype === 'currency' ? 'Fiat / currency payment' : 'Cryptocurrency payment')"></p>
+                                     <span class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-dark-300 text-primary">
+                                         <img x-show="selectedMethod.image && !selectedMethod.imageFailed" :src="selectedMethod.image" :alt="selectedMethod.name + ' logo'" x-on:error="selectedMethod.imageFailed = true" class="h-full w-full object-contain">
+                                         <i x-show="!selectedMethod.image || selectedMethod.imageFailed" class="fas fa-coins" aria-hidden="true"></i>
+                                     </span>
+                                     <div>
+                                         <p class="font-semibold text-white" x-text="selectedMethod.name"></p>
+                                         <p class="text-xs font-semibold text-primary" x-text="selectedMethod.symbol"></p>
+                                        <p class="text-xs text-gray-400" x-text="selectedMethod.network ? 'Network: ' + selectedMethod.network : 'Cryptocurrency payment'"></p>
                                     </div>
                                 </div>
 
-                                <template x-if="selectedMethod.methodtype !== 'currency'">
+                                <template x-if="true">
                                     <div class="space-y-4">
                                         <div x-show="selectedQr" class="flex justify-center rounded-xl bg-white p-4 sm:justify-start">
                                             <img :src="selectedQr" :alt="'QR code for ' + selectedMethod.name" class="h-48 w-48 object-contain">
@@ -147,26 +111,16 @@
                                     </div>
                                 </template>
 
-                                <template x-if="selectedMethod.methodtype === 'currency'">
-                                    <div class="grid gap-3 sm:grid-cols-2">
-                                        <div x-show="selectedMethod.bank" class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">Bank</p><p class="mt-1 break-all text-sm font-medium text-white" x-text="selectedMethod.bank"></p></div>
-                                        <div x-show="selectedMethod.account_name" class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">Account name</p><p class="mt-1 break-all text-sm font-medium text-white" x-text="selectedMethod.account_name"></p></div>
-                                        <div x-show="selectedMethod.account_number" class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">Account number</p><p class="mt-1 break-all text-sm font-medium text-white" x-text="selectedMethod.account_number"></p></div>
-                                        <div x-show="selectedMethod.swift" class="rounded-lg bg-dark-100 p-3"><p class="text-xs text-gray-500">SWIFT / code</p><p class="mt-1 break-all text-sm font-medium text-white" x-text="selectedMethod.swift"></p></div>
-                                        <p x-show="!selectedMethod.bank && !selectedMethod.account_name && !selectedMethod.account_number && !selectedMethod.swift" class="text-sm text-gray-400 sm:col-span-2">Follow the configured instructions for this payment method.</p>
-                                    </div>
-                                </template>
-
                                 <p x-show="selectedMethod.instructions" class="whitespace-pre-line rounded-lg bg-dark-100 p-4 text-sm leading-6 text-gray-300" x-text="selectedMethod.instructions"></p>
 
                                 <div class="border-t border-dark-100 pt-5">
                                     <p class="text-xs font-semibold uppercase tracking-wider text-primary">Step 4</p>
-                                    <label for="amount" class="mt-2 block text-sm font-medium text-gray-300">Deposit amount ({{ Auth::user()->currency }})</label>
+                                    <label for="amount" class="mt-2 block text-sm font-medium text-gray-300">Deposit amount (USD)</label>
                                     <input type="number" name="amount" id="amount" x-model="amount"
                                         min="{{ $moresettings->minamt }}" step="0.01" required
                                         class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-4 py-3 text-white focus:border-primary focus:outline-none"
                                         placeholder="0.00">
-                                    <p class="mt-1 text-xs text-gray-500">Minimum deposit: {{ Auth::user()->currency }}{{ $moresettings->minamt }}</p>
+                                    <p class="mt-1 text-xs text-gray-500">Minimum deposit: ${{ $moresettings->minamt }}</p>
                                     <button type="submit" :disabled="!selectedMethodId || !amount"
                                         class="mt-5 w-full rounded-lg bg-primary px-6 py-3 font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50">
                                         Continue to payment
@@ -201,9 +155,7 @@
     @parent
     @php
         $oldDepositMethod = $dmethods->firstWhere('id', (int) old('payment_method_id', 0));
-        $defaultDepositCategory = $oldDepositMethod
-            ? (strtolower(trim((string) $oldDepositMethod->methodtype)) === 'currency' ? 'currency' : 'crypto')
-            : '';
+        $defaultDepositAsset = $oldDepositMethod ? $oldDepositMethod->name : '';
         $defaultDepositMethodId = $oldDepositMethod ? (string) $oldDepositMethod->id : '';
     @endphp
     <script>
@@ -211,12 +163,18 @@
 
         function depositFlow() {
             return {
-                selectedCategory: @json($defaultDepositCategory),
+                cryptoAssets: @json($cryptoAssets),
+                methodDetails: depositMethodDetails,
+                selectedAsset: @json($defaultDepositAsset),
                 selectedMethodId: @json($defaultDepositMethodId),
                 amount: @json(old('amount', $moresettings->minamt)),
                 copied: false,
+                get selectedAssetMethods() {
+                    const asset = this.cryptoAssets.find(item => item.name === this.selectedAsset);
+                    return asset ? asset.methods : [];
+                },
                 get selectedMethod() {
-                    return this.selectedMethodId ? depositMethodDetails[String(this.selectedMethodId)] || null : null;
+                    return this.selectedMethodId ? this.methodDetails[String(this.selectedMethodId)] || null : null;
                 },
                 get selectedQr() {
                     if (!this.selectedMethod) return '';
@@ -227,13 +185,15 @@
                     }
                     return '';
                 },
-                chooseCategory(category) {
-                    this.selectedCategory = category;
+                selectAsset(asset) {
+                    this.selectedAsset = asset;
                     this.selectedMethodId = '';
                 },
                 selectMethod(id) {
                     this.selectedMethodId = String(id);
                     this.copied = false;
+                    const method = this.selectedMethod;
+                    if (method) method.imageFailed = false;
                 },
                 copyAddress() {
                     const address = this.selectedMethod && this.selectedMethod.address;

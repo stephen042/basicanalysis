@@ -91,11 +91,13 @@
             </x-nav-link>
         @endif
 
+        {{-- Swap remains implemented but is hidden from user navigation for now.
         @if ($mod['cryptoswap'])
             <x-nav-link href="{{ route('assetbalance') }}" :active="request()->routeIs('assetbalance') || request()->routeIs('swaphistory')" icon="fab fa-bitcoin">
                 Swap Cryptos
             </x-nav-link>
         @endif
+        --}}
 
         <!-- Account & Settings Section -->
         <div class="pt-4 pb-2">

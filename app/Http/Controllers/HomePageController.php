@@ -10,6 +10,7 @@ use App\Models\Faq;
 use App\Models\Testimony;
 use App\Models\Deposit;
 use App\Models\Withdrawal;
+use App\Support\SchemaInspector;
 use App\Models\TermsPrivacy;
 use Illuminate\Support\Facades\DB;
 use App\Mail\NewNotification;
@@ -20,7 +21,7 @@ class HomePageController extends Controller
     public function index(){
         $settings=Settings::where('id', '=', '1')->first() ?: new Settings();
         //sum total deposited
-        $total_deposits = Deposit::where('status','processed')->sum('amount');
+        $total_deposits = $this->totalWalletDeposits();
 
 
 
@@ -54,7 +55,7 @@ class HomePageController extends Controller
 public function investment(){
         $settings=Settings::where('id', '=', '1')->first();
         //sum total deposited
-        $total_deposits = Deposit::where('status','processed')->sum('amount');
+        $total_deposits = $this->totalWalletDeposits();
 
 
 
@@ -84,7 +85,7 @@ public function investment(){
 public function statistics(){
         $settings=Settings::where('id', '=', '1')->first();
         //sum total deposited
-        $total_deposits = Deposit::where('status','processed')->sum('amount');
+        $total_deposits = $this->totalWalletDeposits();
 
 
 
@@ -122,6 +123,21 @@ public function statistics(){
             'title' => 'Licensing, regulation and registration',
             'settings' => Settings::where('id', '=', '1')->first(),
         ));
+    }
+
+    private function totalWalletDeposits()
+    {
+        $query = Deposit::where('status', 'processed');
+        if (SchemaInspector::hasTable('compound_investment_contributions')) {
+            $query->whereNotIn(
+                'id',
+                DB::table('compound_investment_contributions')
+                    ->select('deposit_id')
+                    ->whereNotNull('deposit_id')
+            );
+        }
+
+        return $query->sum('amount');
     }
 
     //Terms of service route

@@ -4,7 +4,9 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Models\Withdrawal;
+use App\Http\Controllers\User\ViewsController;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -24,6 +26,7 @@ class WithdrawalValidationTest extends TestCase
             $table->string('name');
             $table->string('email')->nullable();
             $table->string('password')->nullable();
+            $table->timestamp('email_verified_at')->nullable();
             $table->decimal('account_bal', 15, 2)->default(0);
             $table->string('account_verify')->default('Verified');
             $table->string('sendotpemail')->default('No');
@@ -36,6 +39,7 @@ class WithdrawalValidationTest extends TestCase
             $table->string('currency')->nullable();
             $table->string('s_currency')->nullable();
             $table->string('enable_kyc')->default('no');
+            $table->string('enable_kyc_registration')->default('no');
             $table->string('withdrawal_option')->default('manual');
             $table->string('auto_merchant_option')->nullable();
             $table->string('contact_email')->nullable();
@@ -81,6 +85,7 @@ class WithdrawalValidationTest extends TestCase
             'currency' => '$',
             's_currency' => 'USD',
             'enable_kyc' => 'no',
+            'enable_kyc_registration' => 'no',
             'withdrawal_option' => 'manual',
             'contact_email' => 'admin@example.test',
         ]);
@@ -134,22 +139,34 @@ class WithdrawalValidationTest extends TestCase
 
     private function makeUser(float $balance = 1000): User
     {
-        $user = User::create(['name' => 'Client', 'email' => 'client@example.test']);
+        $user = User::create(['name' => 'Client', 'email' => 'client@example.test', 'email_verified_at' => now()]);
         $user->account_bal = $balance;
         $user->save();
 
         return $user;
     }
 
+    private function selectWithdrawal(string $type, string $asset, int $methodId): void
+    {
+        $this->withSession([
+            'withdraw_method_id' => $methodId,
+            'withdrawal_type' => $type,
+            'withdrawal_asset' => $asset,
+        ]);
+    }
+
     public function test_crypto_withdrawal_deducts_balance_and_records_details(): void
     {
         $this->withoutMiddleware();
         $user = $this->makeUser(1000);
+        $this->selectWithdrawal('crypto', 'USDT', $this->usdtMethodId);
 
         $this->actingAs($user)
             ->from('/dashboard/withdraw-funds')
             ->post(route('completewithdrawal'), [
                 'method_id' => $this->usdtMethodId,
+                'method_type' => 'crypto',
+                'asset' => 'USDT',
                 'amount' => 200,
                 'submission_key' => 'crypto-key-1',
                 'wallet_address' => 'TW8VUJNp6nNTRzmiP5phHUrZavnnj9M6Do',
@@ -174,11 +191,14 @@ class WithdrawalValidationTest extends TestCase
     {
         $this->withoutMiddleware();
         $user = $this->makeUser(500);
+        $this->selectWithdrawal('crypto', 'USDT', $this->usdtMethodId);
 
         $this->actingAs($user)
             ->from('/dashboard/withdraw-funds')
             ->post(route('completewithdrawal'), [
                 'method_id' => $this->usdtMethodId,
+                'method_type' => 'crypto',
+                'asset' => 'USDT',
                 'amount' => 5000,
                 'submission_key' => 'crypto-key-2',
                 'wallet_address' => 'TW8VUJNp6nNTRzmiP5phHUrZavnnj9M6Do',
@@ -193,11 +213,14 @@ class WithdrawalValidationTest extends TestCase
     {
         $this->withoutMiddleware();
         $user = $this->makeUser(1000);
+        $this->selectWithdrawal('crypto', 'USDT', $this->usdtMethodId);
 
         $this->actingAs($user)
             ->from('/dashboard/withdraw-funds')
             ->post(route('completewithdrawal'), [
                 'method_id' => $this->usdtMethodId,
+                'method_type' => 'crypto',
+                'asset' => 'USDT',
                 'amount' => 50,
                 'submission_key' => 'crypto-key-3',
                 'wallet_address' => 'TW8VUJNp6nNTRzmiP5phHUrZavnnj9M6Do',
@@ -212,11 +235,14 @@ class WithdrawalValidationTest extends TestCase
     {
         $this->withoutMiddleware();
         $user = $this->makeUser(1000);
+        $this->selectWithdrawal('crypto', 'Solana', $this->disabledMethodId);
 
         $this->actingAs($user)
             ->from('/dashboard/withdraw-funds')
             ->post(route('completewithdrawal'), [
                 'method_id' => $this->disabledMethodId,
+                'method_type' => 'crypto',
+                'asset' => 'Solana',
                 'amount' => 200,
                 'submission_key' => 'crypto-key-4',
                 'wallet_address' => 'sol-wallet',
@@ -231,11 +257,14 @@ class WithdrawalValidationTest extends TestCase
     {
         $this->withoutMiddleware();
         $user = $this->makeUser(1000);
+        $this->selectWithdrawal('currency', 'USD', $this->bankMethodId);
 
         $this->actingAs($user)
             ->from('/dashboard/withdraw-funds')
             ->post(route('completewithdrawal'), [
                 'method_id' => $this->bankMethodId,
+                'method_type' => 'currency',
+                'asset' => 'USD',
                 'amount' => 200,
                 'submission_key' => 'bank-key-1',
                 // no bank fields
@@ -250,11 +279,14 @@ class WithdrawalValidationTest extends TestCase
     {
         $this->withoutMiddleware();
         $user = $this->makeUser(1000);
+        $this->selectWithdrawal('currency', 'USD', $this->bankMethodId);
 
         $this->actingAs($user)
             ->from('/dashboard/withdraw-funds')
             ->post(route('completewithdrawal'), [
                 'method_id' => $this->bankMethodId,
+                'method_type' => 'currency',
+                'asset' => 'USD',
                 'amount' => 200,
                 'submission_key' => 'bank-key-2',
                 'bank_name' => 'MyBank',
@@ -283,9 +315,12 @@ class WithdrawalValidationTest extends TestCase
     {
         $this->withoutMiddleware();
         $user = $this->makeUser(1000);
+        $this->selectWithdrawal('crypto', 'USDT', $this->usdtMethodId);
 
         $payload = [
             'method_id' => $this->usdtMethodId,
+            'method_type' => 'crypto',
+            'asset' => 'USDT',
             'amount' => 200,
             'submission_key' => 'duplicate-key',
             'wallet_address' => 'TW8VUJNp6nNTRzmiP5phHUrZavnnj9M6Do',
@@ -300,6 +335,7 @@ class WithdrawalValidationTest extends TestCase
         $this->assertSame(1, Withdrawal::count());
 
         // Replaying the same submission must not deduct again.
+        $this->selectWithdrawal('crypto', 'USDT', $this->usdtMethodId);
         $this->actingAs($user)
             ->from('/dashboard/withdraw-funds')
             ->post(route('completewithdrawal'), $payload)
@@ -307,5 +343,66 @@ class WithdrawalValidationTest extends TestCase
 
         $this->assertSame('800.00', $user->fresh()->account_bal);
         $this->assertSame(1, Withdrawal::count());
+    }
+
+    public function test_server_rendered_selection_keeps_currency_and_crypto_assets_separate(): void
+    {
+        $cryptoView = (new ViewsController())->withdrawals(
+            Request::create('/dashboard/withdrawals', 'GET', ['type' => 'crypto', 'asset' => 'USDT'])
+        );
+        $cryptoData = $cryptoView->getData();
+        $this->assertSame('crypto', $cryptoData['type']);
+        $this->assertSame('USDT', $cryptoData['asset']);
+        $this->assertSame('TRC20', $cryptoData['selectedMethods'][0]['network']);
+
+        $currencyView = (new ViewsController())->withdrawals(
+            Request::create('/dashboard/withdrawals', 'GET', ['type' => 'currency', 'asset' => 'USD'])
+        );
+        $currencyData = $currencyView->getData();
+        $this->assertSame('currency', $currencyData['type']);
+        $this->assertSame('USD', $currencyData['asset']);
+        $this->assertSame('Bank Transfer', $currencyData['selectedMethods'][0]['name']);
+
+        $invalidAsset = (new ViewsController())->withdrawals(
+            Request::create('/dashboard/withdrawals', 'GET', ['type' => 'crypto', 'asset' => 'USD'])
+        );
+        $this->assertNull($invalidAsset->getData()['asset']);
+        $this->assertSame([], $invalidAsset->getData()['selectedMethods']);
+    }
+
+    public function test_backend_persists_and_validates_both_asset_type_selections(): void
+    {
+        $user = $this->makeUser();
+
+        $this->actingAs($user, 'sanctum')
+            ->post(route('withdrawamount'), [
+                'method_id' => $this->usdtMethodId,
+                'method_type' => 'crypto',
+                'asset' => 'USDT',
+            ])
+            ->assertRedirect(route('withdrawfunds'))
+            ->assertSessionHas('withdrawal_type', 'crypto')
+            ->assertSessionHas('withdrawal_asset', 'USDT')
+            ->assertSessionHas('withdraw_method_id', $this->usdtMethodId);
+
+        $this->actingAs($user, 'sanctum')
+            ->post(route('withdrawamount'), [
+                'method_id' => $this->bankMethodId,
+                'method_type' => 'currency',
+                'asset' => 'USD',
+            ])
+            ->assertRedirect(route('withdrawfunds'))
+            ->assertSessionHas('withdrawal_type', 'currency')
+            ->assertSessionHas('withdrawal_asset', 'USD')
+            ->assertSessionHas('withdraw_method_id', $this->bankMethodId);
+
+        $this->actingAs($user, 'sanctum')
+            ->post(route('withdrawamount'), [
+                'method_id' => $this->usdtMethodId,
+                'method_type' => 'currency',
+                'asset' => 'USD',
+            ])
+            ->assertRedirect(route('withdrawals'))
+            ->assertSessionHas('message');
     }
 }

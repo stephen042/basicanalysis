@@ -25,6 +25,7 @@ use App\Models\UserTradingBot;
 use App\Models\Wallets;
 use App\Models\Wdmethod;
 use App\Models\Withdrawal;
+use App\Support\SchemaInspector;
 use App\Traits\PingServer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -76,7 +77,10 @@ class ViewsController extends Controller
         }
 
         //sum total deposited
-        $total_deposited = DB::table('deposits')->where('user', $user->id)->where('status', 'Processed')->sum('amount');
+        $depositsQuery = DB::table('deposits')
+            ->where('user', $user->id)
+            ->where('status', 'Processed');
+        $total_deposited = $this->excludeCompoundContributions($depositsQuery)->sum('amount');
 
         $total_withdrawal = DB::table('withdrawals')->where('user', $user->id)->where('status', 'Processed')->sum('amount');
 
@@ -223,24 +227,35 @@ class ViewsController extends Controller
         $paymethod = Wdmethod::where(function ($query) {
             $query->where('type', '=', 'deposit')
                 ->orWhere('type', '=', 'both');
-        })->whereIn('methodtype', ['currency', 'crypto'])
-            ->where('status', 'enabled')
+        })->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+            ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
             ->orderBy('name')
+            ->orderBy('network')
             ->get();
 
-        $fiatMethods = $paymethod
-            ->filter(function ($method) {
-                return strtolower(trim((string) $method->methodtype)) === 'currency';
-            })
-            ->values();
         $cryptoMethods = $paymethod
-            ->filter(function ($method) {
-                return strtolower(trim((string) $method->methodtype)) === 'crypto';
-            })
             ->values();
+        $cryptoAssets = $cryptoMethods->groupBy('name')->map(function ($methods, $asset) {
+            $method = $methods->first();
+
+            return [
+                'name' => $asset,
+                'ticker' => $this->cryptoSymbol($asset),
+                'image' => $this->externalImageUrl($method->img_url),
+                'imageFailed' => false,
+                'methods' => $methods->map(function ($method) {
+                    return [
+                        'id' => (int) $method->id,
+                        'network' => $method->network ?: 'Default network',
+                        'symbol' => $this->cryptoSymbol($method->name),
+                        'image' => $this->externalImageUrl($method->img_url),
+                        'imageFailed' => false,
+                    ];
+                })->values(),
+            ];
+        })->values();
 
         $depositMethodDetails = $paymethod->mapWithKeys(function ($method) {
-            $isCrypto = strtolower(trim((string) $method->methodtype)) !== 'currency';
             $barcode = null;
             if ($method->barcode && Storage::disk('public')->exists($method->barcode)) {
                 $barcode = Storage::disk('public')->url($method->barcode);
@@ -249,10 +264,12 @@ class ViewsController extends Controller
             return [(string) $method->id => [
                 'id' => (int) $method->id,
                 'name' => $method->name,
-                'methodtype' => strtolower(trim((string) $method->methodtype)),
-                'image' => $method->img_url,
+                'symbol' => $this->cryptoSymbol($method->name),
+                'methodtype' => 'crypto',
+                'image' => $this->externalImageUrl($method->img_url),
+                'imageFailed' => false,
                 'network' => $method->network,
-                'address' => $isCrypto ? ($method->wallet_address ?: env($method->name)) : null,
+                'address' => $method->wallet_address ?: env($method->name),
                 'barcode' => $barcode,
                 'bank' => $method->bankname,
                 'account_name' => $method->account_name,
@@ -263,20 +280,66 @@ class ViewsController extends Controller
             })->all();
 
         //sum total deposited
-        $total_deposited = DB::table('deposits')->where('user', auth()->user()->id)->where('status', 'Processed')->sum('amount');
+        $depositsQuery = DB::table('deposits')
+            ->where('user', auth()->user()->id)
+            ->where('status', 'Processed');
+        $total_deposited = $this->excludeCompoundContributions($depositsQuery)->sum('amount');
 
         return view('user.deposits')
             ->with(array(
                 'title' => 'Fund your account',
                 'dmethods' => $paymethod,
-                'fiatMethods' => $fiatMethods,
                 'cryptoMethods' => $cryptoMethods,
+                'cryptoAssets' => $cryptoAssets,
                 'depositMethodDetails' => $depositMethodDetails,
                 'deposits' => Deposit::where(['user' => Auth::user()->id])
                     ->orderBy('id', 'desc')
                     ->get(),
                 'deposited' => $total_deposited,
             ));
+    }
+
+    /**
+     * Return a display ticker from configured method naming, not from a
+     * withdrawal-method ID. The image itself always comes from wdmethods.img_url.
+     */
+    private function cryptoSymbol($name): string
+    {
+        $name = trim((string) $name);
+        $knownSymbols = [
+            'bitcoin' => 'BTC',
+            'ethereum' => 'ETH',
+            'tether' => 'USDT',
+            'usd coin' => 'USDC',
+            'binance coin' => 'BNB',
+            'ripple' => 'XRP',
+            'litecoin' => 'LTC',
+            'dogecoin' => 'DOGE',
+            'tron' => 'TRX',
+            'solana' => 'SOL',
+            'cardano' => 'ADA',
+        ];
+        $key = strtolower($name);
+        if (isset($knownSymbols[$key])) {
+            return $knownSymbols[$key];
+        }
+        if (preg_match('/\(([A-Za-z0-9]{2,10})\)\s*$/', $name, $matches)) {
+            return strtoupper($matches[1]);
+        }
+        if (preg_match('/^[A-Za-z0-9]{2,10}$/', $name) && strtoupper($name) === $name) {
+            return $name;
+        }
+
+        return strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name), 0, 5));
+    }
+
+    private function externalImageUrl($url): ?string
+    {
+        $url = trim((string) $url);
+
+        return stripos($url, 'https://') === 0 && filter_var($url, FILTER_VALIDATE_URL)
+            ? $url
+            : null;
     }
 
     public function gasfee()
@@ -316,80 +379,67 @@ class ViewsController extends Controller
     }
 
     //Return withdrawals route
-    public function withdrawals()
+    public function withdrawals(Request $request)
     {
         $methods = Wdmethod::where(function ($query) {
             $query->where('type', '=', 'withdrawal')
                 ->orWhere('type', '=', 'both');
-        })->where('status', 'enabled')->orderBy('name')->orderBy('id')->get();
+        })->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])->orderBy('name')->orderBy('id')->get();
 
         $settings = Settings::where('id', 1)->first();
-        $defaultCode = $settings->s_currency ?: 'USD';
-        $defaultSymbol = $settings->currency ?: '$';
-
-        // Crypto assets: distinct names, each with its configured networks/methods.
+        $defaultCode = optional($settings)->s_currency ?: 'USD';
+        $defaultSymbol = optional($settings)->currency ?: '$';
         $cryptoAssets = [];
+        $fiatAssets = [];
         foreach ($methods as $method) {
-            if (strtolower(trim((string) $method->methodtype)) !== 'crypto') {
-                continue;
-            }
-            $cryptoAssets[$method->name][] = [
+            $assetType = strtolower(trim((string) $method->methodtype));
+            $assetCode = $assetType === 'crypto' ? $method->name : ($method->currency ?: $defaultCode);
+            $methodData = [
                 'id' => (int) $method->id,
                 'name' => $method->name,
+                'type' => $assetType,
+                'asset' => $assetCode,
+                'minimum' => $method->minimum,
+                'maximum' => $method->maximum,
+                'charges_amount' => $method->charges_amount,
+                'charges_type' => $method->charges_type,
+                'duration' => $method->duration,
+                'img_url' => $method->img_url,
                 'network' => $method->network,
-                'minimum' => $method->minimum,
-                'maximum' => $method->maximum,
-                'charges_amount' => $method->charges_amount,
-                'charges_type' => $method->charges_type,
-                'duration' => $method->duration,
-                'img_url' => $method->img_url,
             ];
-        }
-
-        // Fiat currencies: default account currency first, then admin-configured codes.
-        $fiatCurrencies = [];
-        foreach ($methods as $method) {
-            if (strtolower(trim((string) $method->methodtype)) !== 'currency') {
-                continue;
+            if ($assetType === 'crypto') {
+                $cryptoAssets[$assetCode][] = $methodData;
+            } elseif ($assetType === 'currency') {
+                $fiatAssets[$assetCode][] = $methodData;
             }
-            $code = $method->currency ?: $defaultCode;
-            if (!isset($fiatCurrencies[$code])) {
-                $fiatCurrencies[$code] = [
-                    'code' => $code,
-                    'symbol' => $defaultSymbol,
-                    'methods' => [],
-                ];
-            }
-            $fiatCurrencies[$code]['methods'][] = [
-                'id' => (int) $method->id,
-                'name' => $method->name,
-                'minimum' => $method->minimum,
-                'maximum' => $method->maximum,
-                'charges_amount' => $method->charges_amount,
-                'charges_type' => $method->charges_type,
-                'duration' => $method->duration,
-                'img_url' => $method->img_url,
-            ];
         }
 
-        if (!isset($fiatCurrencies[$defaultCode])) {
-            $fiatCurrencies[$defaultCode] = [
-                'code' => $defaultCode,
-                'symbol' => $defaultSymbol,
-                'methods' => [],
-            ];
+        $type = in_array($request->query('type'), ['crypto', 'currency'], true)
+            ? $request->query('type')
+            : null;
+        $assets = $type === 'crypto' ? $cryptoAssets : $fiatAssets;
+        $asset = $request->query('asset');
+        if (!is_string($asset) || !array_key_exists($asset, $assets)) {
+            $asset = null;
         }
 
-        // Keep the default currency first for a stable, predictable list.
-        $default = $fiatCurrencies[$defaultCode];
-        unset($fiatCurrencies[$defaultCode]);
-        $fiatCurrencies = array_values(array_merge([$default], array_values($fiatCurrencies)));
+        $availableAssets = [];
+        foreach ($assets as $code => $assetMethods) {
+            $availableAssets[] = [
+                'value' => $code,
+                'label' => $code,
+                'symbol' => $type === 'currency' ? $defaultSymbol : strtoupper(substr($code, 0, 5)),
+                'methods' => $assetMethods,
+            ];
+        }
 
         return view('user.withdrawals')
             ->with(array(
                 'title' => 'Withdraw Your funds',
-                'cryptoAssets' => $cryptoAssets,
-                'fiatCurrencies' => $fiatCurrencies,
+                'type' => $type,
+                'asset' => $asset,
+                'availableAssets' => $availableAssets,
+                'selectedMethods' => $asset ? $assets[$asset] : [],
                 'defaultCurrency' => [
                     'code' => $defaultCode,
                     'symbol' => $defaultSymbol,
@@ -667,10 +717,10 @@ class ViewsController extends Controller
             $months[] = $date->format('M');
 
             // Calculate deposits for this month
-            $monthlyDeposits = Deposit::where('user', $userId)
+            $monthlyDepositsQuery = Deposit::where('user', $userId)
                 ->where('status', 'Processed')
-                ->whereBetween('created_at', [$monthStart, $monthEnd])
-                ->sum('amount');
+                ->whereBetween('created_at', [$monthStart, $monthEnd]);
+            $monthlyDeposits = $this->excludeCompoundContributions($monthlyDepositsQuery)->sum('amount');
 
             // Calculate withdrawals for this month
             $monthlyWithdrawals = Withdrawal::where('user', $userId)
@@ -703,6 +753,20 @@ class ViewsController extends Controller
             'months' => $months,
             'values' => $values
         ];
+    }
+
+    private function excludeCompoundContributions($query)
+    {
+        if (SchemaInspector::hasTable('compound_investment_contributions')) {
+            $query->whereNotIn(
+                'id',
+                DB::table('compound_investment_contributions')
+                    ->select('deposit_id')
+                    ->whereNotNull('deposit_id')
+            );
+        }
+
+        return $query;
     }
 
     /**

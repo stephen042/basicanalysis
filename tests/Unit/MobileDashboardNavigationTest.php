@@ -35,5 +35,9 @@ class MobileDashboardNavigationTest extends TestCase
 
         $this->assertStringContainsString('env(safe-area-inset-bottom', $layout);
         $this->assertStringContainsString('76px + env(safe-area-inset-bottom', $layout);
+
+        $sidebar = File::get(resource_path('views/user/sidebar.blade.php'));
+        $this->assertStringContainsString('Swap remains implemented but is hidden from user navigation', $sidebar);
+        $this->assertTrue(Route::has('assetbalance'), 'Swap routes remain available for later re-enabling.');
     }
 }

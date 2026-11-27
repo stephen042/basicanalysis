@@ -5,7 +5,7 @@
     <!-- Page title -->
     <div class="mb-8">
         <h1 class="text-2xl font-bold text-white md:text-3xl">{{ $title }}</h1>
-        <p class="mt-1 text-sm text-gray-400">Complete your deposit of <span class="font-bold text-white">{{ Auth::user()->currency }}{{ number_format($amount) }}</span>.</p>
+                <p class="mt-1 text-sm text-gray-400">Complete your deposit of <span class="font-bold text-white">${{ number_format($amount, 2) }}</span>.</p>
     </div>
 
     <x-danger-alert />
@@ -18,17 +18,24 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-400">You are paying</p>
-                        <p class="text-3xl font-bold text-white">{{ Auth::user()->currency }}{{ number_format($amount, 2) }}</p>
+                        <p class="text-3xl font-bold text-white">${{ number_format($amount, 2) }}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-sm text-gray-400">Payment Method</p>
                         <div class="flex items-center mt-1">
-                             @if (!empty($payment_mode->img_url))
-                                <img src="{{ $payment_mode->img_url }}" alt="{{ $payment_mode->name }}" class="w-6 h-6 mr-2 rounded-full">
+                             @if (!empty($payment_mode->img_url) && stripos(trim($payment_mode->img_url), 'https://') === 0)
+                                <img src="{{ $payment_mode->img_url }}" alt="{{ $payment_mode->name }} logo" class="mr-2 h-7 w-7 rounded-full object-contain"
+                                    onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+                                <span hidden class="mr-2 text-primary-400"><i class="fas fa-coins"></i></span>
                             @else
-                                <span class="mr-2 text-primary-400"><i class="fas fa-money-check-alt"></i></span>
+                                <span class="mr-2 text-primary-400"><i class="fas fa-coins"></i></span>
                             @endif
-                            <p class="text-lg font-semibold text-white">{{ $payment_mode->name }}</p>
+                            <div>
+                                <p class="text-lg font-semibold text-white">{{ $payment_mode->name }}</p>
+                                @if (strtolower(trim((string) $payment_mode->methodtype)) === 'crypto')
+                                    <p class="text-xs text-gray-400">{{ strtoupper(trim((string) $payment_mode->name)) }}@if($payment_mode->network) · {{ $payment_mode->network }}@endif</p>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -81,7 +88,33 @@
                         }
                     @endphp
 
-                    @if ($settings->deposit_option != 'manual' && $isCrypto
+                    @if (!empty($isCompoundRecurring))
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="text-lg font-semibold text-white">Recurring contribution payment</h3>
+                                <p class="mt-1 text-gray-400">Send the exact amount to the configured wallet. This contribution remains pending until an administrator verifies your payment.</p>
+                            </div>
+                            @if($paymentBarcode)
+                                <div class="flex justify-center"><img src="{{ $paymentBarcode }}" alt="{{ $payment_mode->name }} payment QR code" class="max-h-56 max-w-full rounded-lg border-4 border-primary-500"></div>
+                            @elseif(!empty($paymentAddress))
+                                <div class="flex justify-center"><img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode($paymentAddress) }}" alt="Payment QR code" class="h-48 w-48 rounded-lg border-4 border-primary-500"></div>
+                            @endif
+                            <div class="rounded-lg bg-dark-100 p-4">
+                                <p class="text-xs uppercase text-gray-500">Wallet address</p>
+                                <code class="mt-2 block break-all text-primary">{{ $paymentAddress ?: 'No wallet address is configured. Contact support before paying.' }}</code>
+                                @if($payment_mode->network)<p class="mt-2 text-sm text-gray-400">Network: {{ $payment_mode->network }}</p>@endif
+                                @if($payment_mode->duration)<p class="mt-2 whitespace-pre-line text-sm text-gray-300">{{ $payment_mode->duration }}</p>@endif
+                            </div>
+                            <form method="POST" action="{{ route('savedeposit') }}" enctype="multipart/form-data" class="border-t border-dark-100 pt-5">
+                                @csrf
+                                <input type="hidden" name="amount" value="{{ $amount }}">
+                                <input type="hidden" name="payment_method_id" value="{{ $payment_mode->id }}">
+                                <label class="font-semibold text-white" for="compound-recurring-proof">Upload transaction proof</label>
+                                <input id="compound-recurring-proof" type="file" name="proof" accept="image/*,.pdf,.doc" required class="mt-3 w-full text-sm text-gray-300 file:mr-4 file:rounded-md file:border-0 file:bg-primary-600 file:px-4 file:py-2 file:font-semibold file:text-white">
+                                <button type="submit" class="mt-4 w-full rounded-md bg-primary-600 px-6 py-3 font-medium text-white">Submit recurring contribution for approval</button>
+                            </form>
+                        </div>
+                    @elseif ($settings->deposit_option != 'manual' && $isCrypto
                         && strtoupper(trim((string) $payment_mode->name)) === 'USDT'
                         && $settings->auto_merchant_option == 'Binance')
                         <livewire:user.crypto-payment />

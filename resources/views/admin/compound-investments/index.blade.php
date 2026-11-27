@@ -15,7 +15,7 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
     @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
     <div class="card"><div class="card-body table-responsive">
         <table class="table table-hover">
-            <thead><tr><th>User</th><th>Initial amount</th><th>Request date</th><th>Frequency / top-up</th><th>Payment</th><th>Investment</th><th>Action</th></tr></thead>
+            <thead><tr><th>User</th><th>Initial amount</th><th>Request date</th><th>Frequency / top-up</th><th>Pending contributions</th><th>Payment</th><th>Investment</th><th>Action</th></tr></thead>
             <tbody>
             @forelse($investments as $investment)
                 <tr>
@@ -24,8 +24,16 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                     <td>{{ $investment->created_at->format('M j, Y H:i') }}</td>
                     <td>{{ ucfirst($investment->recurring_frequency) }}<small class="d-block text-muted">{{ $currency }}{{ number_format($investment->recurring_amount,2) }}</small></td>
                     <td>
+                        @php($pendingContributionCount = $investment->relationLoaded('contributions') ? $investment->contributions->filter(function ($contribution) { return $contribution->status === 'pending' && ($contribution->deposit_id || $contribution->balance_debited); })->count() : 0)
+                        @if($pendingContributionCount > 0)
+                            <span class="badge badge-warning">{{ $pendingContributionCount }} awaiting review</span>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
+                    <td>
                         <span class="badge badge-{{ $investment->deposit_status === 'approved' ? 'success' : ($investment->deposit_status === 'rejected' ? 'danger' : ($investment->payment_proof ? 'info' : 'warning')) }}">
-                            {{ $investment->deposit_status === 'approved' ? 'Approved' : ($investment->deposit_status === 'rejected' ? 'Rejected' : ($investment->payment_proof ? 'Receipt submitted' : 'Pending payment')) }}
+                            {{ $investment->deposit_status === 'approved' ? 'Approved' : ($investment->deposit_status === 'rejected' ? 'Rejected' : (($investment->payment_source === 'subscription_balance' || $investment->payment_method === 'Subscription Balance') ? 'Balance reserved · Pending admin approval' : ($investment->payment_proof ? 'Receipt submitted' : 'Pending payment'))) }}
                         </span>
                         <small class="d-block text-muted">{{ $investment->payment_method ?: '—' }}</small>
                     </td>
@@ -33,7 +41,7 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                     <td><a class="btn btn-sm btn-primary" href="{{ route('admin.compound-investments.show', $investment) }}">Review / Manage</a></td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="text-center text-muted">No compound investment requests found.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted">No compound investment requests found.</td></tr>
             @endforelse
             </tbody>
         </table>

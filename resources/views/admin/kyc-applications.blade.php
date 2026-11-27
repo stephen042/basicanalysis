@@ -132,16 +132,36 @@ if (Auth('admin')->User()->dashboard_style == 'light') {
                                         <h2 class="text-{{ $text }}">{{ $kyc->document_type }}</h2>
                                         <small class="text-muted">Document type</small>
                                     </div>
-                                    <div class="mb-3 col-md-6">
-                                        <img src="{{ asset('storage/app/public/' . $kyc->frontimg) }}" alt=""
-                                            class="w-50 img-fluid d-block">
-                                        <small class="text-muted">Front View of Document</small>
-                                    </div>
-                                    <div class="mb-3 col-md-6">
-                                        <img src="{{ asset('storage/app/public/' . $kyc->backimg) }}" alt=""
-                                            class="w-50 img-fluid d-block">
-                                        <small class="text-muted">Back View of Document</small>
-                                    </div>
+                                    @if($kyc->frontimg)
+                                        <div class="mb-4 col-md-6">
+                                            @if($kyc->hasDocument('front'))
+                                                <a href="{{ $kyc->documentUrl('front') }}" target="_blank" rel="noopener noreferrer" title="Open full-size front image in a new tab">
+                                                    <img src="{{ $kyc->documentUrl('front') }}" alt="Front of {{ $kyc->document_type }}" class="img-fluid d-block rounded border" style="width:100%;max-height:650px;object-fit:contain;background:#111">
+                                                </a>
+                                                <small class="mt-2 d-block text-muted">Front of document · Click to open full size</small>
+                                            @else
+                                                <div class="alert alert-warning mb-0">
+                                                    <strong>Front document file is missing from storage.</strong>
+                                                    The database record is intact, but the original file could not be found on the server. Ask the user to resubmit only if verification cannot proceed.
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                    @if($kyc->backimg)
+                                        <div class="mb-4 col-md-6">
+                                            @if($kyc->hasDocument('back'))
+                                                <a href="{{ $kyc->documentUrl('back') }}" target="_blank" rel="noopener noreferrer" title="Open full-size back image in a new tab">
+                                                    <img src="{{ $kyc->documentUrl('back') }}" alt="Back of {{ $kyc->document_type }}" class="img-fluid d-block rounded border" style="width:100%;max-height:650px;object-fit:contain;background:#111">
+                                                </a>
+                                                <small class="mt-2 d-block text-muted">Back of document · Click to open full size</small>
+                                            @else
+                                                <div class="alert alert-warning mb-0">
+                                                    <strong>Back document file is missing from storage.</strong>
+                                                    The database record is intact, but the original file could not be found on the server. Ask the user to resubmit only if verification cannot proceed.
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>

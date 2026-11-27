@@ -5,7 +5,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-bold text-white">Start Compounding</h1>
-            <p class="mt-1 text-sm text-gray-400">Build a scenario and submit your investment request in USD. Choose a payment method separately.</p>
+            <p class="mt-1 text-sm text-gray-400">Submit an investment application in USD. The investment and recurring schedule begin only after administrator approval.</p>
         </div>
         <div class="flex gap-2">
             <a href="{{ route('compound-investment.history') }}" class="rounded-lg border border-dark-100 px-4 py-2 text-sm text-gray-200">Investment history</a>
@@ -26,7 +26,7 @@
                 <span class="mt-1 block normal-case tracking-normal text-gray-500">Minimum $1 · Maximum $1,000,000,000</span>
             </label>
             <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Monthly return
-                <input readonly value="27.8%" class="mt-2 w-full cursor-not-allowed bg-transparent text-2xl font-bold text-primary">
+                <input readonly value="{{ number_format($monthlyReturn, 2) }}%" class="mt-2 w-full cursor-not-allowed bg-transparent text-2xl font-bold text-primary">
             </label>
             <label class="rounded-xl bg-dark-100 p-4 text-xs uppercase tracking-wider text-gray-400">Performance rate
                 <input readonly value="{{ number_format($performanceRate, 2) }}%" class="mt-2 w-full cursor-not-allowed bg-transparent text-2xl font-bold text-primary">
@@ -51,7 +51,7 @@
             <div class="rounded-xl bg-primary/10 p-4 sm:col-span-2">
                 <p class="text-xs uppercase tracking-wider text-gray-400">Illustrative projected value</p>
                 <p id="ci-projection" class="mt-2 text-3xl font-black text-primary">{{ $currency }}0.00</p>
-                <p class="mt-1 text-xs text-gray-500">Assumes a constant 27.8% monthly return and periodic deposits. This is not a guarantee.</p>
+                <p class="mt-1 text-xs text-gray-500">Assumes a constant {{ number_format($monthlyReturn, 2) }}% monthly return and periodic deposits. This is not a guarantee.</p>
             </div>
         </div>
     </section>
@@ -68,7 +68,7 @@
     @endphp
     <section class="rounded-xl border border-dark-100 bg-dark-200 p-5 md:p-7">
         <h2 class="text-xl font-semibold text-white">Payment method</h2>
-        <p class="mt-1 text-sm text-gray-400">Investments are denominated in USD. Pay from your Subscription Balance or select USDT for Direct Deposit.</p>
+            <p class="mt-1 text-sm text-gray-400">Investments are denominated in USD. Your application remains pending until administrator approval.</p>
         <form method="POST" action="{{ route('compound-investment.store') }}"
             class="mt-5 space-y-5"
             x-data='{
@@ -104,11 +104,17 @@
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
-                <label class="text-sm text-gray-300">Initial investment amount (USD)
+                <label class="text-sm text-gray-300">Starting amount (USD)
                     <input name="amount" id="ci-deposit-amount" type="number" min="1" max="1000000000" step="0.01" required
                         value="{{ old('amount', 1000) }}" x-model.number="amount"
                         class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
                     <span class="mt-1 block text-xs text-gray-500">Minimum $1 · Maximum $1,000,000,000</span>
+                </label>
+                <label class="text-sm text-gray-300">Monthly return (%)
+                    <input readonly value="{{ number_format($monthlyReturn, 2) }}%" class="mt-2 w-full cursor-not-allowed rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-primary">
+                </label>
+                <label class="text-sm text-gray-300">Performance
+                    <input readonly value="{{ number_format($performanceRate, 2) }}%" class="mt-2 w-full cursor-not-allowed rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-primary">
                 </label>
                 <label class="text-sm text-gray-300">Investment duration
                     <select name="duration_months" id="ci-deposit-duration" class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
@@ -117,9 +123,9 @@
                         @endforeach
                     </select>
                 </label>
-                <label class="text-sm text-gray-300">Recurring top-up (USD)
+                <label class="text-sm text-gray-300">Recurring top-up amount (USD)
                     <input name="recurring_amount" id="ci-deposit-recurring" type="number" min="0" max="1000000000" step="0.01" value="{{ old('recurring_amount', 0) }}" class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
-                    <span class="mt-1 block text-xs text-gray-500">Maximum $1,000,000,000</span>
+                    <span class="mt-1 block text-xs text-gray-500">This is your own manual contribution, not admin profit.</span>
                 </label>
                 <label class="text-sm text-gray-300">Top-up frequency
                     <select name="recurring_frequency" id="ci-deposit-frequency" class="mt-2 w-full rounded-lg border border-dark-100 bg-dark-300 px-3 py-3 text-white">
@@ -145,7 +151,7 @@
             </div>
 
             <fieldset x-show="paymentSource === 'direct_deposit'" x-cloak>
-                <legend class="mb-2 text-sm font-semibold text-gray-200">Choose USDT as your Direct Deposit payment method</legend>
+                <legend class="mb-2 text-sm font-semibold text-gray-200">Choose an enabled USDT payment network</legend>
                 <input type="hidden" name="payment_method_id" :value="directDepositMethodId" :disabled="paymentSource !== 'direct_deposit'">
                 @if($methods->isEmpty())
                     <p class="rounded-lg bg-yellow-500/10 p-4 text-sm text-yellow-300">No enabled USDT direct-deposit method is configured. Choose Subscription Balance or contact support.</p>
@@ -189,6 +195,7 @@
 <script>
 (function () {
     var currency = @json($currency);
+    var monthlyReturn = @json((float) $monthlyReturn);
     var start = document.getElementById('ci-start');
     var duration = document.getElementById('ci-duration');
     var recurring = document.getElementById('ci-recurring');
@@ -204,7 +211,7 @@
         var periods = Math.ceil(months * factor);
         var balance = Number(start.value) || 0;
         var contribution = Number(recurring.value) || 0;
-        var monthlyRate = 0.278;
+        var monthlyRate = monthlyReturn / 100;
         for (var i = 0; i < periods; i++) {
             balance *= Math.pow(1 + monthlyRate, 1 / factor);
             balance += contribution;

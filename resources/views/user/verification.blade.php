@@ -146,7 +146,7 @@
                     <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
                         <div>
                             <label class="block mb-2 text-sm font-medium text-gray-300">Document Front Side <span class="text-red-500">*</span></label>
-                            <input type="file" name="frontimg" @change="frontPreview = URL.createObjectURL($event.target.files[0])" class="hidden" id="frontimg" required>
+                            <input type="file" name="frontimg" accept="image/jpeg,image/png,image/webp" @change="frontPreview = URL.createObjectURL($event.target.files[0])" class="hidden" id="frontimg" required>
                             <label for="frontimg" class="flex flex-col items-center justify-center w-full p-6 text-center border-2 border-dashed rounded-lg cursor-pointer border-dark-100 hover:border-primary">
                                 <img :src="frontPreview" x-show="frontPreview" class="object-cover h-32 max-w-full mb-4 rounded-lg">
                                 <div x-show="!frontPreview">
@@ -156,8 +156,8 @@
                             </label>
                         </div>
                         <div>
-                            <label class="block mb-2 text-sm font-medium text-gray-300">Document Back Side <span class="text-red-500">*</span></label>
-                            <input type="file" name="backimg" @change="backPreview = URL.createObjectURL($event.target.files[0])" class="hidden" id="backimg" required>
+                            <label class="block mb-2 text-sm font-medium text-gray-300">Document Back Side <span class="text-xs text-gray-500">(required for ID and Driver's License; optional for Passport)</span></label>
+                            <input type="file" name="backimg" accept="image/jpeg,image/png,image/webp" @change="backPreview = URL.createObjectURL($event.target.files[0])" class="hidden" id="backimg" :required='documentType !== "Int&#39;l Passport"'>
                             <label for="backimg" class="flex flex-col items-center justify-center w-full p-6 text-center border-2 border-dashed rounded-lg cursor-pointer border-dark-100 hover:border-primary">
                                 <img :src="backPreview" x-show="backPreview" class="object-cover h-32 max-w-full mb-4 rounded-lg">
                                 <div x-show="!backPreview">
@@ -187,4 +187,3 @@
     </div>
 </div>
 @endsection
-

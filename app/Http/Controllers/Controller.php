@@ -43,6 +43,7 @@ class Controller extends BaseController
     //verify PayPal deposits
     public function paypalverify($amount)
     {
+        abort(410, 'Card and fiat deposits are disabled. Use an enabled cryptocurrency deposit method.');
 
         $user = User::where('id', Auth::user()->id)->first();
 

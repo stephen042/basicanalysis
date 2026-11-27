@@ -27,6 +27,7 @@ use App\Models\Kyc;
 use App\Models\Wallets;
 use App\Models\OrdersP2p;
 use App\Models\Task;
+use App\Support\SchemaInspector;
 
 class HomeController extends Controller
 {
@@ -37,9 +38,19 @@ class HomeController extends Controller
      */
     public function index()
     {
+        $compoundContributionDeposits = SchemaInspector::hasTable('compound_investment_contributions')
+            ? DB::table('compound_investment_contributions')->select('deposit_id')->whereNotNull('deposit_id')
+            : null;
+        $regularDeposits = function ($query) use ($compoundContributionDeposits) {
+            if ($compoundContributionDeposits) {
+                $query->whereNotIn('id', $compoundContributionDeposits);
+            }
+
+            return $query;
+        };
         //sum total deposited
-        $total_deposited = DB::table('deposits')->select(DB::raw("SUM(amount) as count"))->where('status', 'Processed')->get();
-        $pending_deposited = DB::table('deposits')->select(DB::raw("SUM(amount) as count"))->where('status', 'Pending')->get();
+        $total_deposited = $regularDeposits(DB::table('deposits')->select(DB::raw("SUM(amount) as count"))->where('status', 'Processed'))->get();
+        $pending_deposited = $regularDeposits(DB::table('deposits')->select(DB::raw("SUM(amount) as count"))->where('status', 'Pending'))->get();
         $total_withdrawn = DB::table('withdrawals')->select(DB::raw("SUM(amount) as count"))->where('status', 'Processed')->get();
         $pending_withdrawn = DB::table('withdrawals')->select(DB::raw("SUM(amount) as count"))->where('status', 'Pending')->get();
 
@@ -49,8 +60,8 @@ class HomeController extends Controller
         $plans = Plans::count();
         $unverifiedusers = User::where('account_verify', '!=', 'yes')->count();
 
-        $chart_pdepsoit = DB::table('deposits')->where('status', 'Processed')->sum('amount');
-        $chart_pendepsoit = DB::table('deposits')->where('status', 'Pending')->sum('amount');
+        $chart_pdepsoit = $regularDeposits(DB::table('deposits')->where('status', 'Processed'))->sum('amount');
+        $chart_pendepsoit = $regularDeposits(DB::table('deposits')->where('status', 'Pending'))->sum('amount');
         $chart_pwithdraw = DB::table('withdrawals')->where('status', 'Processed')->sum('amount');
         $chart_pendwithdraw = DB::table('withdrawals')->where('status', 'Pending')->sum('amount');
         $chart_trans = Tp_Transaction::sum('amount');
@@ -177,10 +188,17 @@ class HomeController extends Controller
 
         // $minihack = Http::withToken($token->purchase_code)->accept('application/json')->get('http://example.com');
 
+        $hasCompoundContributionTable = SchemaInspector::hasTable('compound_investment_contributions');
+        $deposits = Deposit::with('duser')->orderBy('id', 'desc');
+        if ($hasCompoundContributionTable) {
+            $deposits->with('compoundContribution.investment');
+        }
+
         return view('admin.Deposits.mdeposits')
             ->with(array(
                 'title' => 'Manage users deposits',
-                'deposits' => Deposit::with('duser')->orderBy('id', 'desc')->get(),
+                'deposits' => $deposits->get(),
+                'hasCompoundContributionTable' => $hasCompoundContributionTable,
 
             ));
     }
@@ -378,10 +396,9 @@ class HomeController extends Controller
 
     public function viewKycApplication($id)
     {
-
         return view('admin.kyc-applications', [
             'title' => 'View KYC Application',
-            'kyc' => Kyc::where('id', $id)->with(['user'])->first(),
+            'kyc' => Kyc::where('id', $id)->with(['user'])->firstOrFail(),
         ]);
     }
 

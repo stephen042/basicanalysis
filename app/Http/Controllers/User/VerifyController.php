@@ -12,6 +12,8 @@ use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class VerifyController extends Controller
 {
@@ -26,40 +28,37 @@ class VerifyController extends Controller
     public function verifyaccount(KycApplicationRequest $request)
     {
         $user = Auth::user();
-        $whitelist = array('jpeg', 'jpg', 'png');
-
-        // filter front of document upload
-        $frontimg = $request->file('frontimg');
-        $backimg = $request->file('backimg');
-        $backimgExtention = $backimg->extension();
-        $extension = $frontimg->extension();
-
-        if (!in_array($extension, $whitelist) or !in_array($backimgExtention, $whitelist)) {
-            return redirect()->back()
-                ->with('message', 'Unaccepted Image Uploaded, please make sure to upload the correct document.');
+        $frontimgPath = null;
+        $backimgPath = null;
+        try {
+            $frontimgPath = $request->file('frontimg')->store('kyc-documents/' . $user->id, 'local');
+            $backimgPath = $request->hasFile('backimg')
+                ? $request->file('backimg')->store('kyc-documents/' . $user->id, 'local')
+                : null;
+            $kyc = DB::transaction(function () use ($request, $user, $frontimgPath, $backimgPath) {
+                $kyc = new Kyc();
+                $kyc->first_name = $request->first_name;
+                $kyc->last_name = $request->last_name;
+                $kyc->email = $request->email;
+                $kyc->phone_number = $request->phone_number;
+                $kyc->dob = $request->dob;
+                $kyc->social_media = $request->social_media;
+                $kyc->address = $request->address;
+                $kyc->city = $request->city;
+                $kyc->state = $request->state;
+                $kyc->country = $request->country;
+                $kyc->document_type = $request->document_type;
+                $kyc->frontimg = $frontimgPath;
+                $kyc->backimg = $backimgPath;
+                $kyc->status = 'Under review';
+                $kyc->user_id = $user->id;
+                $kyc->save();
+                return $kyc;
+            });
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete(array_filter([$frontimgPath, $backimgPath]));
+            throw $e;
         }
-
-        // upload documents to storage
-        $frontimgPath = $frontimg->store('uploads', 'public');
-        $backimgPath = $backimg->store('uploads', 'public');
-
-        $kyc = new Kyc();
-        $kyc->first_name = $request->first_name;
-        $kyc->last_name = $request->last_name;
-        $kyc->email = $request->email;
-        $kyc->phone_number = $request->phone_number;
-        $kyc->dob = $request->dob;
-        $kyc->social_media = $request->social_media;
-        $kyc->address = $request->address;
-        $kyc->city = $request->city;
-        $kyc->state = $request->state;
-        $kyc->country = $request->country;
-        $kyc->document_type = $request->document_type;
-        $kyc->frontimg = $frontimgPath;
-        $kyc->backimg = $backimgPath;
-        $kyc->status = 'Under review';
-        $kyc->user_id = $user->id;
-        $kyc->save();
 
         try {
             // Send KYC application notification to user

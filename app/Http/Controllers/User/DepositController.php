@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Mail\DepositStatus;
+use App\Models\CompoundInvestmentContribution;
+use Illuminate\Support\Facades\DB;
 
 class DepositController extends Controller
 {
@@ -29,8 +31,8 @@ class DepositController extends Controller
     {
         $methodname = Wdmethod::whereKey($id)
             ->whereIn('type', ['deposit', 'both'])
-            ->whereIn('methodtype', ['currency', 'crypto'])
-            ->where('status', 'enabled')
+            ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+            ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
             ->firstOrFail();
         return response()->json($methodname->name);
     }
@@ -38,6 +40,9 @@ class DepositController extends Controller
     //Return payment page
     public function newdeposit(Request $request)
     {
+        // A standard account deposit must not inherit a pending recurring
+        // contribution context from a previous browser session.
+        $request->session()->forget('compound_contribution_id');
         $settings = Settings::where('id', '1')->first();
         $minimum = optional(SettingsCont::find(1))->minamt;
         $minimum = is_numeric($minimum) ? (float) $minimum : 1;
@@ -47,8 +52,8 @@ class DepositController extends Controller
         ]);
         $methodname = Wdmethod::whereKey($data['payment_method_id'])
             ->whereIn('type', ['deposit', 'both'])
-            ->whereIn('methodtype', ['currency', 'crypto'])
-            ->where('status', 'enabled')
+            ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+            ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
             ->firstOrFail();
         if ($settings === null) {
             abort(503, 'Deposit settings are currently unavailable.');
@@ -98,13 +103,36 @@ class DepositController extends Controller
     public function payment(Request $request)
     {
         $methodId = $request->session()->get('payment_method_id');
+        $contributionId = $request->session()->get('compound_contribution_id');
+        $contribution = null;
+        if ($contributionId) {
+            $contribution = CompoundInvestmentContribution::with('investment')
+                ->whereKey($contributionId)
+                ->whereHas('investment', function ($query) {
+                    $query->where('user_id', Auth::id())
+                        ->where('status', 'active')
+                        ->where('deposit_status', 'approved');
+                })
+                ->where('status', 'pending')
+                ->whereNull('deposit_id')
+                ->first();
+            if (!$contribution) {
+                $request->session()->forget(['compound_contribution_id', 'payment_method_id', 'payment_network', 'payment_mode', 'amount', 'intent']);
+                return redirect()->route('compound-investment.history')
+                    ->with('error', 'This recurring contribution is no longer awaiting payment.');
+            }
+        }
         $methodname = $methodId
             ? Wdmethod::whereKey($methodId)
                 ->whereIn('type', ['deposit', 'both'])
-                ->whereIn('methodtype', ['currency', 'crypto'])
-                ->where('status', 'enabled')
+                ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+                ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
                 ->first()
-            : Wdmethod::firstWhere('name', $request->session()->get('payment_mode'));
+            : Wdmethod::where('name', $request->session()->get('payment_mode'))
+                ->whereIn('type', ['deposit', 'both'])
+                ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+                ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
+                ->first();
         if (!$methodname) {
             return redirect()->route('deposits')
                 ->with('error', 'The selected deposit method is no longer enabled. Please choose another method.');
@@ -124,17 +152,20 @@ class DepositController extends Controller
 
         return view('user.payment')
             ->with(array(
-                'amount' => $request->session()->get('amount'),
+                'amount' => $contribution ? $contribution->amount : $request->session()->get('amount'),
                 'payment_mode' => $methodname,
                 'paymentAddress' => $paymentAddress,
                 'paymentBarcode' => $paymentBarcode,
                 'intent' => $request->session()->get('intent'),
+                'isCompoundRecurring' => (bool) $contribution,
+                'compoundContribution' => $contribution,
                 'title' => 'Make Payment',
             ));
     }
 
     public function savestripepayment(Request $request)
     {
+        abort(410, 'Card and fiat deposits are disabled. Use an enabled cryptocurrency deposit method.');
         $user = User::where('id', Auth::user()->id)->first();
 
         //get settings
@@ -247,7 +278,7 @@ class DepositController extends Controller
     public function savedeposit(Request $request)
     {
         $this->validate($request, [
-            'proof' => 'image|mimes:jpg,jpeg,png|max:3000',
+            'proof' => 'required|file|mimes:jpg,jpeg,png,webp,pdf,doc|max:10000',
         ]);
 
         $settings = Settings::where('id', '=', '1')->first();
@@ -261,8 +292,8 @@ class DepositController extends Controller
         if ($requestedMethodId) {
             $method = Wdmethod::whereKey($requestedMethodId)
                 ->whereIn('type', ['deposit', 'both'])
-                ->whereIn('methodtype', ['currency', 'crypto'])
-                ->where('status', 'enabled')
+                ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+                ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
                 ->first();
         } else {
             // Preserve a valid in-flight session created before payment IDs
@@ -270,8 +301,8 @@ class DepositController extends Controller
             $legacyMethodName = $request->session()->get('payment_mode', $request->input('paymethd_method'));
             $method = Wdmethod::where('name', $legacyMethodName)
                 ->whereIn('type', ['deposit', 'both'])
-                ->whereIn('methodtype', ['currency', 'crypto'])
-                ->where('status', 'enabled')
+                ->whereRaw('LOWER(TRIM(methodtype)) = ?', ['crypto'])
+                ->whereRaw('LOWER(TRIM(status)) = ?', ['enabled'])
                 ->first();
         }
         if (!$method) {
@@ -284,12 +315,31 @@ class DepositController extends Controller
 
         $sessionAmount = $request->session()->get('amount');
         $amount = is_numeric($sessionAmount) ? (float) $sessionAmount : (float) $request->input('amount');
+        $contributionId = $request->session()->get('compound_contribution_id');
+        $contribution = $contributionId
+            ? CompoundInvestmentContribution::with('investment')
+                ->whereKey($contributionId)
+                ->whereHas('investment', function ($query) {
+                    $query->where('user_id', Auth::id())
+                        ->where('status', 'active')
+                        ->where('deposit_status', 'approved');
+                })
+                ->where('status', 'pending')
+                ->whereNull('deposit_id')
+                ->first()
+            : null;
+        if ($contributionId && (!$contribution
+            || (int) $requestedMethodId !== (int) $sessionMethodId
+            || abs(round($amount * 100) - round((float) $contribution->amount * 100)) > 0)) {
+            return redirect()->route('compound-investment.history')
+                ->with('error', 'The recurring contribution payment details changed. Please restart the contribution.');
+        }
         if (!is_finite($amount) || $amount <= 0) {
             return redirect()->back()->with('error', 'The deposit amount is invalid. Please start the deposit again.');
         }
         $minimum = optional(SettingsCont::find(1))->minamt;
         $minimum = is_numeric($minimum) ? (float) $minimum : 1;
-        if ($amount < $minimum) {
+        if (!$contribution && $amount < $minimum) {
             return redirect()->back()->with('error', 'The deposit amount is below the configured minimum.');
         }
         if ($request->filled('amount')
@@ -297,31 +347,61 @@ class DepositController extends Controller
             return redirect()->back()->with('error', 'The deposit amount changed. Please start the deposit again.');
         }
 
-        $path = null;
-        if ($request->hasFile('proof')) {
-            $file = $request->file('proof');
-            $extension = $file->extension();
-            $whitelist = array('pdf', 'doc', 'jpeg', 'jpg', 'png');
+        $path = $request->file('proof')->store('uploads', 'public');
+        if ($contribution) {
+            try {
+                $dp = DB::transaction(function () use ($contribution, $method, $amount, $path) {
+                    $lockedContribution = CompoundInvestmentContribution::whereKey($contribution->id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                    $investment = \App\Models\CompoundInvestment::whereKey($lockedContribution->compound_investment_id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                    if ($lockedContribution->status !== 'pending'
+                        || $lockedContribution->deposit_id
+                        || $investment->status !== 'active'
+                        || $investment->deposit_status !== 'approved'
+                        || abs(round($amount * 100) - round((float) $lockedContribution->amount * 100)) > 0) {
+                        throw new \DomainException('This recurring payment has already been submitted or is no longer eligible.');
+                    }
 
-            if (in_array($extension, $whitelist)) {
-                $path = $file->store('uploads', 'public');
-            } else {
-                return redirect()->back()
-                    ->with('message', 'Unaccepted Image Uploaded');
+                    $dp = new Deposit();
+                    $dp->amount = $lockedContribution->amount;
+                    $dp->payment_mode = $method->name;
+                    $dp->payment_method_id = $method->id;
+                    $dp->payment_network = $method->network;
+                    $dp->status = 'Pending';
+                    $dp->proof = $path;
+                    $dp->user = Auth::id();
+                    $dp->save();
+
+                    $lockedContribution->deposit_id = $dp->id;
+                    $lockedContribution->payment_method = $method->name;
+                    $lockedContribution->save();
+
+                    return $dp;
+                });
+            } catch (\Throwable $e) {
+                Storage::disk('public')->delete($path);
+                if ($e instanceof \DomainException) {
+                    return redirect()->route('compound-investment.show', $contribution->investment)
+                        ->with('error', $e->getMessage());
+                }
+                throw $e;
             }
+        } else {
+            $dp = new Deposit();
+            $dp->amount = $amount;
+            $dp->payment_mode = $method->name;
+            $dp->payment_method_id = $method->id;
+            $dp->payment_network = $sessionMethodId
+                ? $request->session()->get('payment_network')
+                : $method->network;
+            $dp->status = 'Pending';
+            $dp->proof = $path;
+            $dp->user = Auth::user()->id;
+            $dp->save();
         }
-
-        $dp = new Deposit();
-        $dp->amount = $amount;
-        $dp->payment_mode = $method->name;
-        $dp->payment_method_id = $method->id;
-        $dp->payment_network = $sessionMethodId
-            ? $request->session()->get('payment_network')
-            : $method->network;
-        $dp->status = 'Pending';
-        $dp->proof = $path;
-        $dp->user = Auth::user()->id;
-        $dp->save();
 
         // Send deposit notification for manual deposit
         $this->notificationService->sendDepositNotification(
@@ -336,7 +416,23 @@ class DepositController extends Controller
 
         try {
             //Send Email to admin regarding this deposit
-            Mail::to($settings->contact_email)->send(new DepositStatus($dp, $user, 'Successful Deposit', true));
+            if ($contribution) {
+                $body = "New USER RECURRING TOP-UP submitted and pending review.\n"
+                    . "User: {$user->name} ({$user->email})\n"
+                    . "Investment reference: #{$contribution->compound_investment_id}\n"
+                    . "Amount: $" . number_format((float) $contribution->amount, 2) . "\n"
+                    . "Payment method: {$method->name}" . ($method->network ? " ({$method->network})" : '') . "\n"
+                    . "Date: " . now()->format('M j, Y H:i') . "\n"
+                    . "Payment status: Pending admin approval";
+                Mail::to($settings->contact_email)->send(new \App\Mail\NewNotification(
+                    $body,
+                    'Recurring compound contribution awaiting approval',
+                    'Admin',
+                    url('/admin/dashboard/mdeposits')
+                ));
+            } else {
+                Mail::to($settings->contact_email)->send(new DepositStatus($dp, $user, 'Successful Deposit', true));
+            }
         } catch (\Exception $e) {
             Log::error('Failed to send deposit notification email to admin', [
                 'error' => $e->getMessage(),
@@ -381,6 +477,7 @@ class DepositController extends Controller
         $request->session()->forget('payment_method_id');
         $request->session()->forget('payment_network');
         $request->session()->forget('amount');
+        $request->session()->forget('compound_contribution_id');
 
         return redirect()->route('deposits')
             ->with('success', 'Account Fund Sucessful! Please wait for system to validate this transaction.');
